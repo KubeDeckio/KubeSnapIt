@@ -1,6 +1,6 @@
-# KubeSnap
+# KubeSnapIt
 
-KubeSnap is a PowerShell-based tool for Kubernetes that allows users to:
+KubeSnapIt is a PowerShell-based tool for Kubernetes that allows users to:
 
 1. Take Snapshots of Cluster Configurations:
 
@@ -38,7 +38,7 @@ Users can specify labels to filter which Kubernetes objects are included in the 
 
 ---
 
-Why KubeSnap is Needed
+Why KubeSnapIt is Needed
 
 Configuration Change Tracking: In fast-moving Kubernetes environments, it’s essential to track how configurations evolve over time. Changes can easily lead to outages or unexpected behavior, and KubeSnap helps users quickly understand what changed and when.
 
@@ -54,7 +54,7 @@ Disaster Recovery: In the case of misconfigurations or failures, being able to r
 
 ---
 
-Why KubeSnap is Unique Compared to Other Backup Tools
+Why KubeSnapIt is Unique Compared to Other Backup Tools
 
 1. Targeted Snapshots:
 
