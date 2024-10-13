@@ -96,6 +96,13 @@ function Compare-Lines {
     # Set the max width for each box
     $boxWidth = 50
 
+    # Display file path information
+    Write-Host "File1 = $File1Path" -ForegroundColor Cyan
+    Write-Host "File2 = $File2Path`n" -ForegroundColor Cyan
+    
+    # Add a note for whitespace representation
+    Write-Host "Note: Spaces are represented as '␣' in the output." -ForegroundColor Magenta
+
     # Boxed output format for the results
     Write-Host ""
     Write-Host "╔════════════════════════════════════════════════╗" -ForegroundColor Magenta
