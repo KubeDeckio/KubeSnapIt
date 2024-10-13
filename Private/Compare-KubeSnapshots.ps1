@@ -1,117 +1,134 @@
-function Normalize-Yaml {
+function Compare-Lines {
     param (
-        [hashtable]$YamlObject
+        [string]$File1Path,
+        [string]$File2Path
     )
-    $normalizedObject = @{ }
-    foreach ($key in $YamlObject.Keys) {
-        if ($key -eq 'status' -or $key -eq 'lastProbeTime' -or $key -eq 'lastTransitionTime') {
-            continue
-        }
-        $value = $YamlObject[$key]
-        if ($value -is [hashtable]) {
-            $normalizedObject[$key] = Normalize-Yaml -YamlObject $value
-        } elseif ($value -is [array]) {
-            $normalizedObject[$key] = $value | Sort-Object
-        } else {
-            $normalizedObject[$key] = Normalize-Value $value
+    
+    $content1 = Get-Content $File1Path -Raw
+    $content2 = Get-Content $File2Path -Raw
+
+    # Split into lines and remove trailing whitespace
+    $lines1 = $content1 -split "`n" | ForEach-Object { $_.TrimEnd() }
+    $lines2 = $content2 -split "`n" | ForEach-Object { $_.TrimEnd() }
+
+    # Find the index of "status:" in both files
+    $indexStatus1 = $null
+    $indexStatus2 = $null
+    for ($i = 0; $i -lt $lines1.Length; $i++) {
+        if ($lines1[$i] -match "^status:") {
+            $indexStatus1 = $i
+            break
         }
     }
-    return $normalizedObject
-}
-
-function Normalize-Value {
-    param (
-        $value
-    )
-    if ($value -is [string]) {
-        return $value.Trim()
-    } elseif ($value -is [boolean]) {
-        return [string]$value
-    } elseif ($value -is [int] -or $value -is [float]) {
-        return [string]$value
-    } else {
-        return $value
+    for ($i = 0; $i -lt $lines2.Length; $i++) {
+        if ($lines2[$i] -match "^status:") {
+            $indexStatus2 = $i
+            break
+        }
     }
-}
 
-function Compare-YamlRecursively {
-    param (
-        [string]$Prefix,
-        [hashtable]$Yaml1,
-        [hashtable]$Yaml2
-    )
-    foreach ($key in $Yaml1.Keys) {
-        $fullKey = if ($Prefix) { "$Prefix.$key" } else { $key }
-        if ($Yaml2.ContainsKey($key)) {
-            $value1 = $Yaml1[$key]
-            $value2 = $Yaml2[$key]
-            if ($value1 -is [hashtable] -and $value2 -is [hashtable]) {
-                Compare-YamlRecursively -Prefix $fullKey -Yaml1 $value1 -Yaml2 $value2
-            } elseif ($value1 -is [array] -and $value2 -is [array]) {
-                Compare-ArraysAsJson -Key $fullKey -Array1 $value1 -Array2 $value2
-            } elseif ($value1 -ne $value2) {
-                Write-Host "Difference found for key: $fullKey" -ForegroundColor Yellow
-                Write-Host "  File1: `n$(ConvertTo-Yaml $value1)" -ForegroundColor Red
-                Write-Host "  File2: `n$(ConvertTo-Yaml $value2)" -ForegroundColor Green
+    # Remove everything starting from "status:" in both files
+    if ($indexStatus1 -ne $null) { $lines1 = $lines1[0..($indexStatus1 - 1)] }
+    if ($indexStatus2 -ne $null) { $lines2 = $lines2[0..($indexStatus2 - 1)] }
+
+    # Create hashsets of the lines for easy comparison, ignoring line order
+    $set1 = @{ }
+    $set2 = @{ }
+
+    # Track line numbers for File1 and File2
+    for ($i = 0; $i -lt $lines1.Length; $i++) {
+        $line = $lines1[$i]
+        $set1[$line.TrimStart()] = @{ LineNumber = $i + 1; Content = $line }
+    }
+    for ($i = 0; $i -lt $lines2.Length; $i++) {
+        $line = $lines2[$i]
+        $set2[$line.TrimStart()] = @{ LineNumber = $i + 1; Content = $line }
+    }
+
+    # Table to store the differences
+    $comparisonResults = @()
+
+    # Replace spaces with visible marker for leading/trailing whitespace issues
+    function ShowWhitespace($line) {
+        return $line -replace " ", "␣"
+    }
+
+    # Compare lines in File1 against File2
+    foreach ($line in $set1.Keys) {
+        if (-not $set2.ContainsKey($line)) {
+            $comparisonResults += [PSCustomObject]@{
+                LineNumber = $set1[$line].LineNumber
+                File       = "File1"
+                Content    = ShowWhitespace($set1[$line].Content)
+                Difference = "Only in File1"
             }
-        } else {
-            Write-Host "Key: $fullKey exists only in File1" -ForegroundColor Yellow
-            Write-Host "  File1: `n$(ConvertTo-Yaml $Yaml1[$key])" -ForegroundColor Red
+        } elseif ($set1[$line].Content -ne $set2[$line].Content) {
+            if ($set1[$line].Content.TrimStart() -eq $set2[$line].Content.TrimStart()) {
+                $comparisonResults += [PSCustomObject]@{
+                    LineNumber = "$($set1[$line].LineNumber)/$($set2[$line].LineNumber)"
+                    File       = "Both Files"
+                    Content    = "Leading whitespace difference"
+                    Difference = "File1: $($set1[$line].Content -replace ' ', '␣')`nFile2: $($set2[$line].Content -replace ' ', '␣')"
+                }
+            } else {
+                $comparisonResults += [PSCustomObject]@{
+                    LineNumber = "$($set1[$line].LineNumber)/$($set2[$line].LineNumber)"
+                    File       = "Both Files"
+                    Content    = "Content difference"
+                    Difference = "File1: $($set1[$line].Content -replace ' ', '␣')`nFile2: $($set2[$line].Content -replace ' ', '␣')"
+                }
+            }
         }
     }
-    foreach ($key in $Yaml2.Keys) {
-        if (-not $Yaml1.ContainsKey($key)) {
-            $fullKey = if ($Prefix) { "$Prefix.$key" } else { $key }
-            Write-Host "Key: $fullKey exists only in File2" -ForegroundColor Yellow
-            Write-Host "  File2: `n$(ConvertTo-Yaml $Yaml2[$key])" -ForegroundColor Green
-        }
-    }
-}
 
-function Compare-ArraysAsJson {
-    param (
-        [string]$Key,
-        [array]$Array1,
-        [array]$Array2
-    )
-    
-    # Normalize the arrays by sorting them
-    $sortedArray1 = $Array1 | Sort-Object
-    $sortedArray2 = $Array2 | Sort-Object
-    
-    # Check the length of both arrays first
-    if ($sortedArray1.Length -ne $sortedArray2.Length) {
-        Write-Host "Difference found for array key: $Key (Array lengths are different)"
-        Write-Host "  File1: `n$(ConvertTo-Yaml $sortedArray1)" -ForegroundColor Red
-        Write-Host "  File2: `n$(ConvertTo-Yaml $sortedArray2)" -ForegroundColor Green
-        return
-    }
-    
-    # Compare each element
-    for ($i = 0; $i -lt $sortedArray1.Length; $i++) {
-        $element1 = $sortedArray1[$i]
-        $element2 = $sortedArray2[$i]
-        
-        # If elements are hashtables, compare them recursively
-        if ($element1 -is [hashtable] -and $element2 -is [hashtable]) {
-            Compare-YamlRecursively -Prefix "$Key[$i]" -Yaml1 $element1 -Yaml2 $element2
-        } elseif ($element1 -ne $element2) {
-            Write-Host "Difference found for array element at index $i under key: $Key"
-            Write-Host "  File1: `n$(ConvertTo-Yaml $element1)" -ForegroundColor Red
-            Write-Host "  File2: `n$(ConvertTo-Yaml $element2)" -ForegroundColor Green
+    # Compare lines in File2 against File1 to find lines only in File2
+    foreach ($line in $set2.Keys) {
+        if (-not $set1.ContainsKey($line)) {
+            $comparisonResults += [PSCustomObject]@{
+                LineNumber = $set2[$line].LineNumber
+                File       = "File2"
+                Content    = ShowWhitespace($set2[$line].Content)
+                Difference = "Only in File2"
+            }
         }
+    }
+
+    # Set the max width for each box
+    $boxWidth = 50
+
+    # Boxed output format for the results
+    Write-Host ""
+    Write-Host "╔════════════════════════════════════════════════╗" -ForegroundColor Magenta
+    Write-Host "║               File Comparison Summary          ║" -ForegroundColor Magenta
+    Write-Host "╠════════════════════════════════════════════════╣" -ForegroundColor Magenta
+
+    if ($comparisonResults.Count -gt 0) {
+        foreach ($result in $comparisonResults) {
+            $lineFormatted = "Line: $($result.LineNumber)"
+            $fileFormatted = "File: $($result.File)"
+            $contentFormatted = "Content: $($result.Content)"
+            $lineFormatted = $lineFormatted.PadRight($boxWidth - 4) + "║"
+            $fileFormatted = $fileFormatted.PadRight($boxWidth - 4) + "║"
+            $contentFormatted = $contentFormatted.PadRight($boxWidth - 4) + "║"
+
+            Write-Host "║  $lineFormatted" -ForegroundColor Yellow
+            Write-Host "║  $fileFormatted" -ForegroundColor Cyan
+            Write-Host "║  $contentFormatted" -ForegroundColor Red
+            Write-Host "║"  (" " * ($boxWidth - 4))  "║" -ForegroundColor Magenta
+        }
+        Write-Host "╚════════════════════════════════════════════════╝" -ForegroundColor Magenta
+    } else {
+        Write-Host "║  No differences found                        ║" -ForegroundColor Green
+        Write-Host "╚════════════════════════════════════════════════╝" -ForegroundColor Magenta
     }
 }
 
 function CompareFiles {
     param (
-        [string]$File1,
-        [string]$File2
+        [string]$File1Path,
+        [string]$File2Path
     )
-    $yaml1 = Get-Content $File1 -Raw | ConvertFrom-Yaml
-    $yaml2 = Get-Content $File2 -Raw | ConvertFrom-Yaml
-    $normalizedYaml1 = Normalize-Yaml -YamlObject $yaml1
-    $normalizedYaml2 = Normalize-Yaml -YamlObject $yaml2
-    Write-Host "Comparing '$File1' and '$File2': `n" -ForegroundColor Green
-    Compare-YamlRecursively -Prefix "" -Yaml1 $normalizedYaml1 -Yaml2 $normalizedYaml2
+    
+    Write-Host "Comparing '$File1Path' and '$File2Path': `n" -ForegroundColor Green
+    Compare-Lines -File1Path $File1Path -File2Path $File2Path
 }
