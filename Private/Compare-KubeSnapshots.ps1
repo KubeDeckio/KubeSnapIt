@@ -2,7 +2,7 @@ function Normalize-Yaml {
     param (
         [hashtable]$YamlObject
     )
-    $normalizedObject = @{}
+    $normalizedObject = @{ }
     foreach ($key in $YamlObject.Keys) {
         if ($key -eq 'status' -or $key -eq 'lastProbeTime' -or $key -eq 'lastTransitionTime') {
             continue
@@ -74,12 +74,32 @@ function Compare-ArraysAsJson {
         [array]$Array1,
         [array]$Array2
     )
-    $json1 = ($Array1 | Sort-Object) | ConvertTo-Json -Compress
-    $json2 = ($Array2 | Sort-Object) | ConvertTo-Json -Compress
-    if ($json1 -ne $json2) {
-        Write-Host "Difference found for array key: $Key"
-        Write-Host "  File1: `n$(ConvertTo-Yaml $Array1)" -ForegroundColor Red
-        Write-Host "  File2: `n$(ConvertTo-Yaml $Array2)" -ForegroundColor Green
+    
+    # Normalize the arrays by sorting them
+    $sortedArray1 = $Array1 | Sort-Object
+    $sortedArray2 = $Array2 | Sort-Object
+    
+    # Check the length of both arrays first
+    if ($sortedArray1.Length -ne $sortedArray2.Length) {
+        Write-Host "Difference found for array key: $Key (Array lengths are different)"
+        Write-Host "  File1: `n$(ConvertTo-Yaml $sortedArray1)" -ForegroundColor Red
+        Write-Host "  File2: `n$(ConvertTo-Yaml $sortedArray2)" -ForegroundColor Green
+        return
+    }
+    
+    # Compare each element
+    for ($i = 0; $i -lt $sortedArray1.Length; $i++) {
+        $element1 = $sortedArray1[$i]
+        $element2 = $sortedArray2[$i]
+        
+        # If elements are hashtables, compare them recursively
+        if ($element1 -is [hashtable] -and $element2 -is [hashtable]) {
+            Compare-YamlRecursively -Prefix "$Key[$i]" -Yaml1 $element1 -Yaml2 $element2
+        } elseif ($element1 -ne $element2) {
+            Write-Host "Difference found for array element at index $i under key: $Key"
+            Write-Host "  File1: `n$(ConvertTo-Yaml $element1)" -ForegroundColor Red
+            Write-Host "  File2: `n$(ConvertTo-Yaml $element2)" -ForegroundColor Green
+        }
     }
 }
 
@@ -92,6 +112,6 @@ function CompareFiles {
     $yaml2 = Get-Content $File2 -Raw | ConvertFrom-Yaml
     $normalizedYaml1 = Normalize-Yaml -YamlObject $yaml1
     $normalizedYaml2 = Normalize-Yaml -YamlObject $yaml2
-    Write-Host "Comparing '$File1' and '$File2': `n"
+    Write-Host "Comparing '$File1' and '$File2': `n" -ForegroundColor Green
     Compare-YamlRecursively -Prefix "" -Yaml1 $normalizedYaml1 -Yaml2 $normalizedYaml2
 }
