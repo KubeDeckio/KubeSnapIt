@@ -4,7 +4,7 @@ KubeSnapIt is a PowerShell-based tool for Kubernetes that allows users to:
 
 1. Take Snapshots of Cluster Configurations:
 
-Capture the current state of Kubernetes objects (Deployments, Services, ConfigMaps, Secrets, etc.) in JSON or YAML format.
+Capture the current state of Kubernetes objects (Deployments, Services, ConfigMaps, Secrets, etc.) in YAML format.
 
 Users can take snapshots of an entire namespace, specific objects, or filter by labels to capture only what is needed.
 
