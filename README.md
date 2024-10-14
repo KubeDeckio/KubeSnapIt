@@ -1,85 +1,66 @@
-# KubeSnapIt
 
-KubeSnapIt is a PowerShell-based tool for Kubernetes that allows users to:
+<p align="center">
+  <img src="./images/KubeSnapIt.png" />
+</p>
+<h1 align="center" style="font-size: 100px;">
+  <b>KubeSnapIt</b>
+</h1>
 
-1. Take Snapshots of Cluster Configurations:
+</br>
 
-Capture the current state of Kubernetes objects (Deployments, Services, ConfigMaps, Secrets, etc.) in YAML format.
-
-Users can take snapshots of an entire namespace, specific objects, or filter by labels to capture only what is needed.
-
-
-
-2. Compare Snapshots (Diff):
-
-Identify differences between two snapshots or compare a snapshot with the current state of the cluster. This allows users to track what configuration changes were made over time, helping them debug or review changes after deployments.
-
-
-
-3. Restore Configurations from Snapshots:
-
-Quickly restore Kubernetes configurations to a previous state by applying a snapshot back to the cluster. This helps with rollbacks and fast recovery after unintended changes.
-
-
-
-4. Automated Scheduled Snapshots:
-
-Schedule periodic snapshots, enabling continuous tracking of how the cluster's configuration evolves. This is especially useful for auditing, compliance, and disaster recovery planning.
-
-
-
-5. Snapshot by Labels:
-
-Users can specify labels to filter which Kubernetes objects are included in the snapshot. This gives precise control over which objects to capture, making it easier to focus on specific parts of the cluster.
-
-
-
-
+![Publish Module to PowerShell Gallery](https://github.com/KubeDeckio/KubeSnapIt/actions/workflows/publish-psgal.yml/badge.svg)
+[![Publish Plugin to Krew](https://github.com/KubeDeckio/KubeSnapIt/actions/workflows/publish-krewplugin.yaml/badge.svg)](https://github.com/KubeDeckio/KubeSnapIt/actions/workflows/publish-krewplugin.yaml)
+![PowerShell Gallery Version](https://img.shields.io/powershellgallery/v/KubeSnapIt.svg)
+![Downloads](https://img.shields.io/powershellgallery/dt/KubeSnapIt.svg)
+![License](https://img.shields.io/github/license/PixelRobots/KubeSnapIt.svg)
 
 ---
 
-Why KubeSnapIt is Needed
+**KubeSnapIt** is a PowerShell-based tool for Kubernetes that simplifies the management of Kubernetes resources by enabling users to take snapshots, compare configurations, and restore states efficiently. It is designed to help Kubernetes administrators and developers manage their cluster configurations effectively.
 
-Configuration Change Tracking: In fast-moving Kubernetes environments, it’s essential to track how configurations evolve over time. Changes can easily lead to outages or unexpected behavior, and KubeSnap helps users quickly understand what changed and when.
+## Documentation
 
-Pre-Deployment Safety: Before making changes to a live Kubernetes environment, it's crucial to capture the current state. KubeSnap makes it easy to take a quick snapshot, ensuring that if something goes wrong, users can easily roll back to a previous configuration.
+For complete installation, usage, and advanced configuration instructions, please visit the [KubeSnapIt Documentation Site](https://kubesnapit.io).
 
-Audit and Compliance: Organizations need to track and log changes to cluster configurations for compliance purposes. KubeSnap can automate the capture of regular snapshots, providing a full history of configuration changes.
+## Features
 
-Drift Detection: Over time, clusters can drift from their intended state due to manual interventions, errors, or automated updates. KubeSnap helps detect this drift by comparing snapshots over time.
+- **Resource Snapshotting:** Capture the current state of Kubernetes objects (Deployments, Services, ConfigMaps, etc.) in YAML format.
+- **Resource Diffing:** Compare snapshots against live cluster states or between two local snapshots to identify changes.
+- **Resource Restoration:** Restore Kubernetes configurations from snapshots quickly and easily.
+- **Automated Scheduled Snapshots:** Schedule periodic snapshots for continuous configuration tracking.
+- **Snapshot by Labels:** Specify labels to filter which Kubernetes objects are included in snapshots.
+- **Dry Run Mode:** Simulate snapshotting or restoration processes without making any actual changes.
+- **Verbose Logging:** Get detailed logs of all operations using the `-Verbose` flag.
 
-Disaster Recovery: In the case of misconfigurations or failures, being able to restore configurations quickly is critical. KubeSnap ensures you can roll back to a known good state.
+## Installation
 
+### PowerShell Gallery
 
+To install **KubeSnapIt** via PowerShell Gallery:
 
----
+```powershell
+Install-Module -Name KubeSnapIt -Repository PSGallery -Scope CurrentUser
+```
 
-Why KubeSnapIt is Unique Compared to Other Backup Tools
+### Krew (Linux and macOS)
 
-1. Targeted Snapshots:
+To install **KubeSnapIt** as a kubectl plugin using Krew:
 
-While many tools focus on backing up entire clusters or etcd snapshots, KubeSnap allows you to selectively snapshot specific objects or namespaces. You can also filter snapshots by labels, meaning you can capture only what’s relevant to the task at hand, like a subset of microservices or critical infrastructure.
+```bash
+curl -H "Cache-Control: no-cache" -O https://raw.githubusercontent.com/PixelRobots/KubeSnapIt/main/KubeSnapIt.yaml
+kubectl krew install --manifest="./KubeSnapIt.yaml"
+```
 
+### Platform Support
 
+**KubeSnapIt** installed via Krew is supported on Linux and macOS. It does not support Windows at this time.
 
-2. Configuration Comparison (Diff):
+For additional instructions, refer to the [KubeSnapIt Documentation Site.](https://docs.kubesnapit.io)
 
-Most backup tools don't offer a way to easily compare configurations over time. KubeSnap's diff feature allows users to quickly see what has changed between two points in time, making it easier to troubleshoot issues or track configuration drift.
+## Changelog
 
+All notable changes to this project are documented in the [CHANGELOG](./CHANGELOG.md).
 
+## License
 
-3. Lightweight and Flexible:
-
-KubeSnap is designed to be a lightweight and flexible tool that integrates directly into PowerShell and kubectl. It doesn’t require a full backup system or dedicated storage—users can control where and how snapshots are stored.
-
-
-
-4. Cross-Platform and Scriptable:
-
-Built on PowerShell Core, KubeSnap works across Windows, macOS, and Linux, providing a consistent experience regardless of the platform. It can also be integrated into larger automation workflows using PowerShell’s scripting capabilities.
-
-
-
-5. Focus on Day-to-Day Operations:
-
-KubeSnap isn’t just about long-term backups or disaster recovery—it’s about helping Kubernetes administrators and developers in their day-to-day operations by offering quick snapshots, simple comparisons, and rollbacks when needed.
+This project is licensed under the MIT License. See the [LICENSE](./LICENSE) file for more details.
