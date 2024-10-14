@@ -1,9 +1,13 @@
 #!/usr/bin/env pwsh
 
+# MARKER: NEW PARAM BLOCK
+
 # Import functions from the Private directory
 Get-ChildItem -Path $PSScriptRoot\Private\*.ps1 | ForEach-Object { . $_.FullName }
 
 function Invoke-KubeSnapIt {
+
+    # START PARAM BLOCK
     [CmdletBinding()]
     param (
         [string]$Namespace = "",
@@ -19,6 +23,7 @@ function Invoke-KubeSnapIt {
         [switch]$CompareWithCluster,
         [Alias("h")] [switch]$Help
     )
+    # END PARAM BLOCK
 
     # Display help message if the Help switch is used
     if ($Help) {
@@ -135,3 +140,5 @@ function Invoke-KubeSnapIt {
         return
     }
 }
+
+# MARKER: FUNCTION CALL

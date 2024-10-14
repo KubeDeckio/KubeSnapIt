@@ -1,24 +1,19 @@
-name: Publish Module to PowerShell Gallery
+name: Run PSScriptAnalyzer on PowerShell Scripts
 
 on:
-  push:
-    tags:
-      - 'v*'
-  release:
-    types:
-      - published
-  workflow_dispatch:
+  pull_request_target:
+    types: [opened]
+    branches:
+    - 'main'
 
 jobs:
-  publish:
+  analyze:
     runs-on: windows-latest
 
     steps:
-      # Checkout the repository
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # Validate PowerShell Code
       - name: Run PSScriptAnalyzer and format output in Markdown
         run: |
           # Run ScriptAnalyzer and capture the output
@@ -68,19 +63,3 @@ jobs:
           }
 
         shell: pwsh
-
-
-      # Validate the module (ensure it loads correctly)
-      - name: Validate PowerShell Module
-        run: |
-          $manifest = Test-ModuleManifest -Path ./KubeScanIt.psd1
-          Write-Host "Validated Module Version: $($manifest.Version)"
-
-      # Publish to PowerShell Gallery
-      - name: Publish to PowerShell Gallery
-        run: |
-          Install-Module -Name PowerShellGet -Force -AllowClobber
-          Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
-          Publish-Module -Path ./ -NuGetApiKey $env:PSGALLERY_API_KEY -Repository PSGallery
-        env:
-          PSGALLERY_API_KEY: ${{ secrets.PSGALLERY_API_KEY }}
