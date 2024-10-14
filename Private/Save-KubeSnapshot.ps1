@@ -13,12 +13,39 @@ function Save-KubeSnapshot {
         Import-Module powershell-yaml
     }
 
-    # Define resource kinds to capture if Objects are not used
-    $resources = @("deployments", "daemonsets", "statefulsets", "configmaps", "secrets")
+    # Define resource kinds
+    $namespacedResources = @(
+        "deployments", 
+        "daemonsets", 
+        "statefulsets", 
+        "configmaps", 
+        "secrets", 
+        "services", 
+        "ingresses", 
+        "persistentvolumeclaims", 
+        "horizontalpodautoscalers", 
+        "roles", 
+        "rolebindings", 
+        "serviceaccounts", 
+        "cronjobs", 
+        "jobs", 
+        "networkpolicies", 
+        "poddisruptionbudgets", 
+        "resourcequotas", 
+        "limitranges"
+    )
+
+    $clusterScopedResources = @(
+        "persistentvolumes", 
+        "clusterroles", 
+        "clusterrolebindings", 
+        "namespaces"
+    )
 
     # Command to capture all pods if no specific pod is provided
     $unmanagedPodsCmd = "get pods --output=json"
 
+    # Set namespace option based on parameters
     if ($AllNamespaces) {
         $namespaceOption = "--all-namespaces"
         $unmanagedPodsCmd += " --all-namespaces"
@@ -84,7 +111,12 @@ function Save-KubeSnapshot {
                         $resourceName = $resourceOutputYaml.metadata.name
                         $kind = $resourceOutputYaml.kind
                         $timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
-                        $resourceFile = Join-Path -Path $OutputPath -ChildPath "${kind}_${resourceName}_$timestamp.yaml"
+
+                        # Sanitize the resourceName by replacing invalid characters with underscores
+                        $safeResourceName = $resourceName -replace "[:\\/]", "_"
+
+                        # Generate a filename based on the kind and name of the resource
+                        $resourceFile = Join-Path -Path $OutputPath -ChildPath "${kind}_${safeResourceName}_$timestamp.yaml"
 
                         Write-Verbose "Saving $kind '$resourceName' snapshot to: $resourceFile"
                         $resourceOutput | Out-File -FilePath $resourceFile -Force
@@ -92,34 +124,75 @@ function Save-KubeSnapshot {
                     }
                 }
             } else {
-                # Loop through each resource kind and capture individual items
-                foreach ($resource in $resources) {
-                    $kubectlCmd = "get $resource $namespaceOption $labelOption -o json"
-                    Write-Verbose "Running command: kubectl $kubectlCmd"
-                    $resourceOutput = Invoke-KubectlCommand $kubectlCmd
+                # Capture namespaced resources if not in AllNamespaces mode
+                if (-not $AllNamespaces -and $Namespace) {
+                    foreach ($resource in $namespacedResources) {
+                        $kubectlCmd = "get $resource $namespaceOption $labelOption -o json"
+                        Write-Verbose "Running command: kubectl $kubectlCmd"
+                        $resourceOutput = Invoke-KubectlCommand $kubectlCmd
 
-                    # Skip if the resource does not exist (i.e., no items)
-                    if (-not $resourceOutput -or $resourceOutput -eq "null" -or $resourceOutput.Contains('"items": []')) {
-                        Write-Verbose "No $resource found in this namespace. Skipping."
-                        continue
+                        # Skip if the resource does not exist (i.e., no items)
+                        if (-not $resourceOutput -or $resourceOutput -eq "null" -or $resourceOutput.Contains('"items": []')) {
+                            Write-Verbose "No $resource found in this namespace. Skipping."
+                            continue
+                        }
+
+                        # Convert JSON to objects for easier processing
+                        $resourceOutputJson = $resourceOutput | ConvertFrom-Json
+
+                        # Process each individual item in the resource output
+                        foreach ($item in $resourceOutputJson.items) {
+                            $resourceName = $item.metadata.name
+                            $kind = $item.kind
+                            $timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
+
+                            # Sanitize the resourceName by replacing invalid characters with underscores
+                            $safeResourceName = $resourceName -replace "[:\\/]", "_"
+
+                            # Generate a filename based on the kind and name of the resource
+                            $resourceFile = Join-Path -Path $OutputPath -ChildPath "${kind}_${safeResourceName}_$timestamp.yaml"
+
+                            # Convert the item back to YAML and save it
+                            $item | ConvertTo-Yaml | Out-File -FilePath $resourceFile -Force
+                            Write-Verbose "Saving $kind '$resourceName' snapshot to: $resourceFile"
+                            Write-Host "$kind '$resourceName' snapshot saved: $resourceFile" -ForegroundColor Green
+                        }
                     }
+                }
 
-                    # Convert JSON to objects for easier processing
-                    $resourceOutputJson = $resourceOutput | ConvertFrom-Json
+                # Capture cluster-scoped resources if AllNamespaces is specified
+                if ($AllNamespaces) {
+                    foreach ($resource in $clusterScopedResources) {
+                        $kubectlCmd = "get $resource -o json" # No namespace option for cluster-scoped resources
+                        Write-Verbose "Running command: kubectl $kubectlCmd"
+                        $resourceOutput = Invoke-KubectlCommand $kubectlCmd
 
-                    # Process each individual item in the resource output
-                    foreach ($item in $resourceOutputJson.items) {
-                        $resourceName = $item.metadata.name
-                        $kind = $item.kind
-                        $timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
+                        # Skip if the resource does not exist (i.e., no items)
+                        if (-not $resourceOutput -or $resourceOutput -eq "null" -or $resourceOutput.Contains('"items": []')) {
+                            Write-Verbose "No $resource found. Skipping."
+                            continue
+                        }
 
-                        # Generate a filename based on the kind and name of the resource
-                        $resourceFile = Join-Path -Path $OutputPath -ChildPath "${kind}_${resourceName}_$timestamp.yaml"
+                        # Convert JSON to objects for easier processing
+                        $resourceOutputJson = $resourceOutput | ConvertFrom-Json
 
-                        # Convert the item back to YAML and save it
-                        $item | ConvertTo-Yaml | Out-File -FilePath $resourceFile -Force
-                        Write-Verbose "Saving $kind '$resourceName' snapshot to: $resourceFile"
-                        Write-Host "$kind '$resourceName' snapshot saved: $resourceFile" -ForegroundColor Green
+                        # Process each individual item in the resource output
+                        foreach ($item in $resourceOutputJson.items) {
+                            $resourceName = $item.metadata.name
+                            $kind = $item.kind
+                            $timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
+
+                            # Sanitize the resourceName by replacing invalid characters with underscores
+                            $safeResourceName = $resourceName -replace "[:\\/]", "_"
+
+                            # Generate a filename based on the kind and name of the resource
+                            $resourceFile = Join-Path -Path $OutputPath -ChildPath "${kind}_${safeResourceName}_$timestamp.yaml"
+
+                            # Convert the item back to YAML and save it
+                            $item | ConvertTo-Yaml | Out-File -FilePath $resourceFile -Force
+                            Write-Verbose "Saving $kind '$resourceName' snapshot to: $resourceFile"
+                            Write-Host "$kind '$resourceName' snapshot saved: $resourceFile" -ForegroundColor Green
+                        }
                     }
                 }
 
