@@ -116,14 +116,19 @@ function Invoke-KubeSnapIt {
 
         # Call the snapshot function
         Show-KubeTidyBanner
-        Save-KubeSnapshot `
-            -Namespace $Namespace `
-            -AllNamespaces:$AllNamespaces `
-            -Labels $Labels `
-            -Objects $Objects `
-            -OutputPath $OutputPath `
-            -DryRun:$DryRun `
-            -Verbose:$Verbose
+        try {
+            Save-KubeSnapshot `
+                -Namespace $Namespace `
+                -AllNamespaces:$AllNamespaces `
+                -Labels $Labels `
+                -Objects $Objects `
+                -OutputPath $OutputPath `
+                -DryRun:$DryRun `
+                -Verbose:$Verbose
+        }
+        catch {
+            Write-Host "Error occurred during the snapshot process: $_" -ForegroundColor Red
+        }
     }
     else {
         Write-Host "Error: You must specify either -Namespace or -AllNamespaces." -ForegroundColor Red
