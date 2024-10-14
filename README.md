@@ -55,7 +55,7 @@ kubectl krew install --manifest="./KubeSnapIt.yaml"
 
 **KubeSnapIt** installed via Krew is supported on Linux and macOS. It does not support Windows at this time.
 
-For additional instructions, refer to the [KubeSnapIt Documentation Site.](https://docs.kubesnapit.io)
+For additional instructions, refer to the [KubeSnapIt Documentation Site.](https://kubesnapit.io)
 
 ## Changelog
 
