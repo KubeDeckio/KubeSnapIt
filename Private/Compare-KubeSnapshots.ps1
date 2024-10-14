@@ -227,28 +227,38 @@ function Compare-Lines {
 function CompareFiles {
     param (
         [Parameter(Mandatory=$true)]
-        [string]$LocalFile            # The local manifest file path
+        [string]$LocalFile,         # The local manifest file path
+        [string]$CompareFile        # The second file to compare against (optional)
     )
 
-    # Parse the YAML file to extract the kind, name, and namespace
-    $resourceInfo = Parse-YamlFile -FilePath $LocalFile
+    # If CompareFile is not provided, fetch the cluster snapshot for comparison
+    if (-not $CompareFile) {
+        # Parse the YAML file to extract the kind, name, and namespace
+        $resourceInfo = Parse-YamlFile -FilePath $LocalFile
 
-    if (-not $resourceInfo) {
-        Write-Host "Error: Could not extract resource information from the file." -ForegroundColor Red
-        return
+        if (-not $resourceInfo) {
+            Write-Host "Error: Could not extract resource information from the file." -ForegroundColor Red
+            return
+        }
+
+        # Fetch the cluster snapshot and store it in a temporary file
+        $clusterSnapshot = Get-KubectlSnapshot -Namespace $resourceInfo.Namespace -ResourceKind $resourceInfo.Kind -ResourceName $resourceInfo.Name
+        
+        if ($clusterSnapshot) {
+            $CompareFile = "$env:TEMP\$($resourceInfo.Name)-cluster-snapshot.yaml"
+            $clusterSnapshot | Out-File -FilePath $CompareFile -Force
+        } else {
+            Write-Host "Error: Could not fetch the cluster snapshot." -ForegroundColor Red
+            return
+        }
     }
 
-    # Fetch the cluster snapshot and store it in a temporary file
-    $clusterSnapshot = Get-KubectlSnapshot -Namespace $resourceInfo.Namespace -ResourceKind $resourceInfo.Kind -ResourceName $resourceInfo.Name
-    
-    if ($clusterSnapshot) {
-        $clusterFile = "$env:TEMP\$($resourceInfo.Name)-cluster-snapshot.yaml"
-        $clusterSnapshot | Out-File -FilePath $clusterFile -Force
+    # Compare the local file with the provided comparison file (either cluster snapshot or another local file)
+    Compare-Lines -LocalFile $LocalFile -CompareFile $CompareFile -IsCluster:($CompareFile -like "*-cluster-snapshot.yaml")
 
-        # Compare the local file with the fetched cluster snapshot
-        Compare-Lines -LocalFile $LocalFile -CompareFile $clusterFile -IsCluster
-
-        # Clean up the temporary file after comparison
-        Remove-Item $clusterFile
+    # If we created a temporary cluster snapshot, clean it up after comparison
+    if ($CompareFile -like "*-cluster-snapshot.yaml") {
+        Remove-Item $CompareFile -Force
     }
 }
+

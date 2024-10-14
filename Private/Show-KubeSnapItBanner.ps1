@@ -1,5 +1,5 @@
-# Function to show KubeTidy Banner
-function Show-KubeTidyBanner {
+# Function to show KubeSnapIt Banner
+function Show-KubeSnapItBanner {
     # Display ASCII art and start message
     Write-Host ""
     Write-Host "██╗  ██╗██╗   ██╗██████╗ ███████╗███████╗███╗   ██╗ █████╗ ██████╗ ██╗████████╗" -ForegroundColor Cyan

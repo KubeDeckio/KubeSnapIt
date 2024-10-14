@@ -55,7 +55,7 @@ function Invoke-KubeSnapIt {
             return
         }
         # Call the Restore-KubeSnapshot function
-        Show-KubeTidyBanner
+        Show-KubeSnapItBanner
         Restore-KubeSnapshot `
             -InputPath $InputPath `
             -Verbose:$Verbose
@@ -72,7 +72,7 @@ function Invoke-KubeSnapIt {
         # Comparison with the current cluster state
         if ($CompareWithCluster) {
             Write-Verbose "Comparing snapshot with current cluster state: $InputPath"
-            Show-KubeTidyBanner
+            Show-KubeSnapItBanner
             CompareFiles `
                 -LocalFile $InputPath `
                 -Verbose:$Verbose
@@ -80,7 +80,7 @@ function Invoke-KubeSnapIt {
         # Comparison between two snapshots
         elseif ($ComparePath) {
             Write-Verbose "Comparing two snapshots: $InputPath and $ComparePath"
-            Show-KubeTidyBanner
+            Show-KubeSnapItBanner
             CompareFiles `
                 -LocalFile $InputPath `
                 -CompareFile $ComparePath `
@@ -115,7 +115,7 @@ function Invoke-KubeSnapIt {
         }
 
         # Call the snapshot function
-        Show-KubeTidyBanner
+        Show-KubeSnapItBanner
         try {
             Save-KubeSnapshot `
                 -Namespace $Namespace `

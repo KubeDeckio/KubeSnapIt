@@ -1,0 +1,44 @@
+<button class="btn js-toggle-dark-mode" style="position: fixed; bottom: 20px; left: 20px; padding: 10px; color: #11a9bb">☾ dark</button>
+
+<script>
+    const btnToggle = document.querySelector('.js-toggle-dark-mode');
+
+    // Set theme based on localStorage
+    if (localStorage.getItem('theme') === 'dark') {
+        jtd.setTheme('dark');
+        btnToggle.textContent = '☼ light';
+    } else {
+        jtd.setTheme('light');
+        btnToggle.textContent = '☾ dark';
+    }
+
+    // Add event listener to toggle dark mode
+    jtd.addEvent(btnToggle, 'click', function () {
+        if (jtd.getTheme() === 'dark') {
+            jtd.setTheme('light');
+            btnToggle.textContent = '☾ dark';
+            localStorage.setItem('theme', 'light');
+        } else {
+            jtd.setTheme('dark');
+            btnToggle.textContent = '☼ light';
+            localStorage.setItem('theme', 'dark');
+        }
+    });
+
+    // Hide on scroll functionality
+    let lastScrollTop = 0;
+
+    window.addEventListener('scroll', function() {
+        let scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+
+        if (scrollTop > lastScrollTop) {
+            // User is scrolling down
+            btnToggle.style.display = 'none';
+        } else {
+            // User is scrolling up
+            btnToggle.style.display = 'block';
+        }
+
+        lastScrollTop = scrollTop <= 0 ? 0 : scrollTop; // For mobile or negative scroll (bounce)
+    });
+</script>
