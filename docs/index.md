@@ -5,7 +5,7 @@ layout: home
 ---
 
 <p align="center">
-<img id="logo" src="assets/images/KubeSnapItDark.png" />
+<img id="logo" src="assets/images/KubeSnapIt.png" />
 </p>
 
 Welcome to **KubeSnapIt**! 
