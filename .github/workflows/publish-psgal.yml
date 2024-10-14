@@ -73,7 +73,7 @@ jobs:
       # Validate the module (ensure it loads correctly)
       - name: Validate PowerShell Module
         run: |
-          $manifest = Test-ModuleManifest -Path ./KubeScanIt.psd1
+          $manifest = Test-ModuleManifest -Path ./KubeSnapIt.psd1
           Write-Host "Validated Module Version: $($manifest.Version)"
 
       # Publish to PowerShell Gallery
