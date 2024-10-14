@@ -8,16 +8,16 @@ function Invoke-KubeSnapIt {
     param (
         [string]$Namespace = "",
         [string]$OutputPath = "./snapshots",
-        [string]$InputPath = "", # Input path for restoring snapshots or first snapshot for comparison
-        [string]$ComparePath = "", # Second path for comparing two snapshots (optional)
+        [string]$InputPath = "", 
+        [string]$ComparePath = "",
         [switch]$AllNamespaces,
         [string]$Labels = "",
-        [string]$Objects = "", # Comma-separated list of kind/name objects
+        [string]$Objects = "",
         [switch]$DryRun,
-        [switch]$Restore, # Trigger restore operation
-        [switch]$Compare, # Trigger comparison between snapshots or with live cluster
-        [switch]$CompareWithCluster, # Compare a snapshot with the current cluster state
-        [switch]$Help
+        [switch]$Restore,
+        [switch]$Compare,
+        [switch]$CompareWithCluster,
+        [Alias("h")] [switch]$Help
     )
 
     # Display help message if the Help switch is used
