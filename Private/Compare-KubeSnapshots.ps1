@@ -1,41 +1,131 @@
+function Get-KubectlSnapshot {
+    param (
+        [string]$Namespace,
+        [string]$ResourceKind,
+        [string]$ResourceName
+    )
+
+    Write-Host "Fetching current cluster state for $ResourceKind/$ResourceName in namespace $Namespace`n" -ForegroundColor Green
+
+    $kubectlCmd = "get $ResourceKind $ResourceName -n $Namespace -o yaml"
+
+    try {
+        $processInfo = New-Object System.Diagnostics.ProcessStartInfo
+        $processInfo.FileName = "kubectl"
+        $processInfo.Arguments = $kubectlCmd
+        $processInfo.RedirectStandardOutput = $true
+        $processInfo.RedirectStandardError = $true
+        $processInfo.UseShellExecute = $false
+        $processInfo.CreateNoWindow = $true
+
+        $process = New-Object System.Diagnostics.Process
+        $process.StartInfo = $processInfo
+
+        # Start the kubectl process
+        $process.Start() | Out-Null
+
+        # Capture output and error
+        $output = $process.StandardOutput.ReadToEnd()
+        $stderr = $process.StandardError.ReadToEnd()
+
+        $process.WaitForExit()
+
+        if ($stderr) {
+            Write-Host "`nError fetching cluster snapshot:`n" -ForegroundColor Red
+            Write-Host $stderr -ForegroundColor Red
+            return $null
+        }
+
+        # Return the YAML content from the cluster
+        return $output
+
+    } catch {
+        Write-Host "Unexpected error while fetching the snapshot: $_" -ForegroundColor Red
+        return $null
+    }
+}
+
+function Parse-YamlFile {
+    param (
+        [string]$FilePath
+    )
+
+    # Import the YAML content as a PSCustomObject
+    $yamlContent = Get-Content $FilePath -Raw | ConvertFrom-Yaml
+
+    # Extract the relevant information: kind, name, and namespace
+    $kind = $yamlContent.kind
+    $name = $yamlContent.metadata.name
+    $namespace = if ($yamlContent.metadata.namespace) { $yamlContent.metadata.namespace } else { "default" }
+
+    return [PSCustomObject]@{
+        Kind = $kind
+        Name = $name
+        Namespace = $namespace
+    }
+}
+
+function Remove-UnwantedBlocks {
+    param (
+        [string[]]$lines
+    )
+
+    $result = @()
+    $insideStatusBlock = $false
+
+    foreach ($line in $lines) {
+        # Skip the 'status' block
+        if ($line -match "^\s*status:") {
+            $insideStatusBlock = $true
+            continue
+        }
+
+        # Skip the 'creationTimestamp' line
+        if ($line -match "^\s*creationTimestamp:") {
+            continue
+        }
+
+        # Detect the end of the 'status' block (next unindented key or end of file)
+        if ($insideStatusBlock -and $line -match "^\S") {
+            $insideStatusBlock = $false
+        }
+
+        # If not inside 'status', add the line to the result
+        if (-not $insideStatusBlock) {
+            $result += $line
+        }
+    }
+
+    return $result
+}
+
 function Compare-Lines {
     param (
-        [string]$File1Path,
-        [string]$File2Path
+        [string]$LocalFile,       # The local manifest file path
+        [string]$CompareFile,     # The file to compare against
+        [switch]$IsCluster        # Switch to indicate if the second file is from the cluster
     )
     
-    $content1 = Get-Content $File1Path -Raw
-    $content2 = Get-Content $File2Path -Raw
+    $content1 = Get-Content $LocalFile -Raw
+    $content2 = Get-Content $CompareFile -Raw
+
+    # Determine labels based on whether we are comparing with the cluster
+    $file1Label = "File1"
+    $file2Label = if ($IsCluster) { "Cluster" } else { "File2" }
 
     # Split into lines and remove trailing whitespace
     $lines1 = $content1 -split "`n" | ForEach-Object { $_.TrimEnd() }
     $lines2 = $content2 -split "`n" | ForEach-Object { $_.TrimEnd() }
 
-    # Find the index of "status:" in both files
-    $indexStatus1 = $null
-    $indexStatus2 = $null
-    for ($i = 0; $i -lt $lines1.Length; $i++) {
-        if ($lines1[$i] -match "^status:") {
-            $indexStatus1 = $i
-            break
-        }
-    }
-    for ($i = 0; $i -lt $lines2.Length; $i++) {
-        if ($lines2[$i] -match "^status:") {
-            $indexStatus2 = $i
-            break
-        }
-    }
-
-    # Remove everything starting from "status:" in both files
-    if ($indexStatus1 -ne $null) { $lines1 = $lines1[0..($indexStatus1 - 1)] }
-    if ($indexStatus2 -ne $null) { $lines2 = $lines2[0..($indexStatus2 - 1)] }
+    # Remove unwanted blocks like 'status' and 'creationTimestamp'
+    $lines1 = Remove-UnwantedBlocks -lines $lines1
+    $lines2 = Remove-UnwantedBlocks -lines $lines2
 
     # Create hashsets of the lines for easy comparison, ignoring line order
     $set1 = @{ }
     $set2 = @{ }
 
-    # Track line numbers for File1 and File2
+    # Track line numbers for File1 and File2 (or Cluster)
     for ($i = 0; $i -lt $lines1.Length; $i++) {
         $line = $lines1[$i]
         $set1[$line.TrimStart()] = @{ LineNumber = $i + 1; Content = $line }
@@ -53,14 +143,14 @@ function Compare-Lines {
         return $line -replace " ", "␣"
     }
 
-    # Compare lines in File1 against File2
+    # Compare lines in File1 against File2 (or Cluster)
     foreach ($line in $set1.Keys) {
         if (-not $set2.ContainsKey($line)) {
             $comparisonResults += [PSCustomObject]@{
                 LineNumber = $set1[$line].LineNumber
-                File       = "File1"
+                File       = $file1Label
                 Content    = ShowWhitespace($set1[$line].Content)
-                Difference = "Only in File1"
+                Difference = "Only in $file1Label"
             }
         } elseif ($set1[$line].Content -ne $set2[$line].Content) {
             if ($set1[$line].Content.TrimStart() -eq $set2[$line].Content.TrimStart()) {
@@ -68,27 +158,27 @@ function Compare-Lines {
                     LineNumber = "$($set1[$line].LineNumber)/$($set2[$line].LineNumber)"
                     File       = "Both Files"
                     Content    = "Leading whitespace difference"
-                    Difference = "File1: $($set1[$line].Content -replace ' ', '␣')`nFile2: $($set2[$line].Content -replace ' ', '␣')"
+                    Difference = "${file1Label}: $($set1[$line].Content -replace ' ', '␣')`n${file2Label}: $($set2[$line].Content -replace ' ', '␣')"
                 }
             } else {
                 $comparisonResults += [PSCustomObject]@{
                     LineNumber = "$($set1[$line].LineNumber)/$($set2[$line].LineNumber)"
                     File       = "Both Files"
                     Content    = "Content difference"
-                    Difference = "File1: $($set1[$line].Content -replace ' ', '␣')`nFile2: $($set2[$line].Content -replace ' ', '␣')"
+                    Difference = "${file1Label}: $($set1[$line].Content -replace ' ', '␣')`n${file2Label}: $($set2[$line].Content -replace ' ', '␣')"
                 }
             }
         }
     }
 
-    # Compare lines in File2 against File1 to find lines only in File2
+    # Compare lines in File2 (or Cluster) against File1 to find lines only in File2/Cluster
     foreach ($line in $set2.Keys) {
         if (-not $set1.ContainsKey($line)) {
             $comparisonResults += [PSCustomObject]@{
                 LineNumber = $set2[$line].LineNumber
-                File       = "File2"
+                File       = $file2Label
                 Content    = ShowWhitespace($set2[$line].Content)
-                Difference = "Only in File2"
+                Difference = "Only in $file2Label"
             }
         }
     }
@@ -97,16 +187,20 @@ function Compare-Lines {
     $boxWidth = 50
 
     # Display file path information
-    Write-Host "File1 = $File1Path" -ForegroundColor Cyan
-    Write-Host "File2 = $File2Path`n" -ForegroundColor Cyan
+    Write-Host "File1 = $LocalFile" -ForegroundColor Cyan
+    if ($IsCluster) {
+        Write-Host "Cluster" -ForegroundColor Cyan
+    } else {
+        Write-Host "File2 = $CompareFile" -ForegroundColor Cyan
+    }
     
     # Add a note for whitespace representation
-    Write-Host "Note: Spaces are represented as '␣' in the output." -ForegroundColor Magenta
+    Write-Host "`nNote: Spaces are represented as '␣' in the output." -ForegroundColor Magenta
 
     # Boxed output format for the results
     Write-Host ""
     Write-Host "╔════════════════════════════════════════════════╗" -ForegroundColor Magenta
-    Write-Host "║               File Comparison Summary          ║" -ForegroundColor Magenta
+    Write-Host "║               Comparison Summary               ║" -ForegroundColor Magenta
     Write-Host "╠════════════════════════════════════════════════╣" -ForegroundColor Magenta
 
     if ($comparisonResults.Count -gt 0) {
@@ -125,17 +219,36 @@ function Compare-Lines {
         }
         Write-Host "╚════════════════════════════════════════════════╝" -ForegroundColor Magenta
     } else {
-        Write-Host "║  No differences found                        ║" -ForegroundColor Green
+        Write-Host "║  No differences found                          ║" -ForegroundColor Green
         Write-Host "╚════════════════════════════════════════════════╝" -ForegroundColor Magenta
     }
 }
 
 function CompareFiles {
     param (
-        [string]$File1Path,
-        [string]$File2Path
+        [Parameter(Mandatory=$true)]
+        [string]$LocalFile            # The local manifest file path
     )
+
+    # Parse the YAML file to extract the kind, name, and namespace
+    $resourceInfo = Parse-YamlFile -FilePath $LocalFile
+
+    if (-not $resourceInfo) {
+        Write-Host "Error: Could not extract resource information from the file." -ForegroundColor Red
+        return
+    }
+
+    # Fetch the cluster snapshot and store it in a temporary file
+    $clusterSnapshot = Get-KubectlSnapshot -Namespace $resourceInfo.Namespace -ResourceKind $resourceInfo.Kind -ResourceName $resourceInfo.Name
     
-    Write-Host "Comparing '$File1Path' and '$File2Path': `n" -ForegroundColor Green
-    Compare-Lines -File1Path $File1Path -File2Path $File2Path
+    if ($clusterSnapshot) {
+        $clusterFile = "$env:TEMP\$($resourceInfo.Name)-cluster-snapshot.yaml"
+        $clusterSnapshot | Out-File -FilePath $clusterFile -Force
+
+        # Compare the local file with the fetched cluster snapshot
+        Compare-Lines -LocalFile $LocalFile -CompareFile $clusterFile -IsCluster
+
+        # Clean up the temporary file after comparison
+        Remove-Item $clusterFile
+    }
 }
