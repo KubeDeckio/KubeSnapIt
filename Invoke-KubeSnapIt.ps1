@@ -8,15 +8,15 @@ function Invoke-KubeSnapIt {
     param (
         [string]$Namespace = "",
         [string]$OutputPath = "./snapshots",
-        [string]$InputPath = "",              # Input path for restoring snapshots or first snapshot for comparison
-        [string]$ComparePath = "",            # Second path for comparing two snapshots (optional)
+        [string]$InputPath = "", # Input path for restoring snapshots or first snapshot for comparison
+        [string]$ComparePath = "", # Second path for comparing two snapshots (optional)
         [switch]$AllNamespaces,
         [string]$Labels = "",
-        [string]$Objects = "",                # Comma-separated list of kind/name objects
+        [string]$Objects = "", # Comma-separated list of kind/name objects
         [switch]$DryRun,
-        [switch]$Restore,                     # Trigger restore operation
-        [switch]$Compare,                     # Trigger comparison between snapshots or with live cluster
-        [switch]$CompareWithCluster,          # Compare a snapshot with the current cluster state
+        [switch]$Restore, # Trigger restore operation
+        [switch]$Compare, # Trigger comparison between snapshots or with live cluster
+        [switch]$CompareWithCluster, # Compare a snapshot with the current cluster state
         [switch]$Help
     )
 
@@ -85,7 +85,8 @@ function Invoke-KubeSnapIt {
                 -LocalFile $InputPath `
                 -CompareFile $ComparePath `
                 -Verbose:$Verbose
-        } else {
+        }
+        else {
             Write-Host "Error: You must specify either -CompareWithCluster or a second snapshot for comparison (-ComparePath)." -ForegroundColor Red
         }
         return
@@ -94,8 +95,18 @@ function Invoke-KubeSnapIt {
     # Handle Snapshot operation (default)
     if ($Namespace -or $AllNamespaces) {
         # Set output path and create directory if it doesn't exist
-        if (-not (Test-Path -Path $OutputPath)) {
-            New-Item -Path $OutputPath -ItemType Directory -Force
+        try {
+            if (-not (Test-Path -Path $OutputPath)) {
+                New-Item -Path $OutputPath -ItemType Directory -Force | Out-Null
+                Write-Verbose "Output directory created: $OutputPath"
+            }
+            else {
+                Write-Verbose "Output directory already exists: $OutputPath"
+            }
+        }
+        catch {
+            Write-Host "Error creating output directory: $_" -ForegroundColor Red
+            return  # Exit the function if directory creation fails
         }
 
         Write-Verbose "Starting snapshot process..."
@@ -113,7 +124,8 @@ function Invoke-KubeSnapIt {
             -OutputPath $OutputPath `
             -DryRun:$DryRun `
             -Verbose:$Verbose
-    } else {
+    }
+    else {
         Write-Host "Error: You must specify either -Namespace or -AllNamespaces." -ForegroundColor Red
         return
     }
