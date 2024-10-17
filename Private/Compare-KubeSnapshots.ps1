@@ -45,7 +45,7 @@ function Get-KubectlSnapshot {
     }
 }
 
-function Parse-YamlFile {
+function Read-YamlFile {
     param (
         [string]$FilePath
     )
@@ -234,7 +234,7 @@ function CompareFiles {
     # If CompareFile is not provided, fetch the cluster snapshot for comparison
     if (-not $CompareFile) {
         # Parse the YAML file to extract the kind, name, and namespace
-        $resourceInfo = Parse-YamlFile -FilePath $LocalFile
+        $resourceInfo = Read-YamlFile -FilePath $LocalFile
 
         if (-not $resourceInfo) {
             Write-Host "Error: Could not extract resource information from the file." -ForegroundColor Red

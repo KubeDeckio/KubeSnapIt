@@ -121,10 +121,10 @@ jobs:
         run: |
           (Get-Content "kubectl-KubeSnapIt" -Raw) -replace "`r`n", "`n" | Set-Content "kubectl-KubeSnapIt"
 
-      # Create tar.gz files for Linux and Darwin
+      # Create tar.gz files for Linux, Darwin (AMD64, ARM64)
       - name: Create Tar Files
         run: |
-          # Get the version from the previous step
+          # Get the version from the tag
           version="${{ github.ref_name }}"
 
           # Create output directory for the tar files
@@ -132,73 +132,79 @@ jobs:
           mkdir -p "$outputDir"
 
           # Create platform-specific directories
-          linuxDir="$outputDir/linux"
-          darwinDir="$outputDir/darwin"
-          mkdir -p "$linuxDir"
-          mkdir -p "$darwinDir"
+          linuxAmd64Dir="$outputDir/linux_amd64"
+          linuxArm64Dir="$outputDir/linux_arm64"
+          darwinAmd64Dir="$outputDir/darwin_amd64"
+          darwinArm64Dir="$outputDir/darwin_arm64"
+          mkdir -p "$linuxAmd64Dir" "$linuxArm64Dir" "$darwinAmd64Dir" "$darwinArm64Dir"
 
-          # Move the updated script to the appropriate platform directories
-          cp "kubectl-KubeSnapIt" "$linuxDir/kubectl-KubeSnapIt"
-          cp "kubectl-KubeSnapIt" "$darwinDir/kubectl-KubeSnapIt"
+          # Copy the kubectl-KubeSnapIt script to each platform directory
+          cp "kubectl-KubeSnapIt" "$linuxAmd64Dir/kubectl-KubeSnapIt"
+          cp "kubectl-KubeSnapIt" "$linuxArm64Dir/kubectl-KubeSnapIt"
+          cp "kubectl-KubeSnapIt" "$darwinAmd64Dir/kubectl-KubeSnapIt"
+          cp "kubectl-KubeSnapIt" "$darwinArm64Dir/kubectl-KubeSnapIt"
+
+          # Copy the Private folder to each platform directory
+          cp -r "Private" "$linuxAmd64Dir/Private"
+          cp -r "Private" "$linuxArm64Dir/Private"
+          cp -r "Private" "$darwinAmd64Dir/Private"
+          cp -r "Private" "$darwinArm64Dir/Private"
 
           # Set execute permission for the kubectl-KubeSnapIt script
-          chmod +x "$linuxDir/kubectl-KubeSnapIt"
-          chmod +x "$darwinDir/kubectl-KubeSnapIt"
+          chmod +x "$linuxAmd64Dir/kubectl-KubeSnapIt"
+          chmod +x "$linuxArm64Dir/kubectl-KubeSnapIt"
+          chmod +x "$darwinAmd64Dir/kubectl-KubeSnapIt"
+          chmod +x "$darwinArm64Dir/kubectl-KubeSnapIt"
 
-          # Copy the Private folder into each platform directory
-          cp -r "Private" "$linuxDir/Private"
-          cp -r "Private" "$darwinDir/Private"
+          # Create tar.gz files for all platforms using the tar command
+          tar -czf "$outputDir/KubeSnapIt-linux-amd64-$version.tar.gz" -C "$linuxAmd64Dir" .
+          tar -czf "$outputDir/KubeSnapIt-linux-arm64-$version.tar.gz" -C "$linuxArm64Dir" .
+          tar -czf "$outputDir/KubeSnapIt-darwin-amd64-$version.tar.gz" -C "$darwinAmd64Dir" .
+          tar -czf "$outputDir/KubeSnapIt-darwin-arm64-$version.tar.gz" -C "$darwinArm64Dir" .
 
-          # Create tar.gz files for Linux and Darwin using the tar command
-          tar -czf "$outputDir/KubeSnapIt-linux-amd64-$version.tar.gz" -C "$linuxDir" .
-          tar -czf "$outputDir/KubeSnapIt-darwin-amd64-$version.tar.gz" -C "$darwinDir" .
-
-      # Generate SHA256 checksums for each tar.gz file
+      # Generate SHA256 Checksums
       - name: Generate SHA256 Checksums
         run: |
           version="${{ github.ref_name }}"
           outputDir="krewplugin"
-          linuxFile="$outputDir/KubeSnapIt-linux-amd64-$version.tar.gz"
-          darwinFile="$outputDir/KubeSnapIt-darwin-amd64-$version.tar.gz"
 
-          # Generate checksum for Linux tar.gz
-          linuxChecksumFile="$outputDir/KubeSnapIt-linux-amd64-$version.sha256"
-          sha256sum "$linuxFile" | awk '{print $1 "  KubeSnapIt-linux-amd64-'$version'.tar.gz"}' > "$linuxChecksumFile"
+          # Generate checksums for all tar.gz files
+          for file in "$outputDir"/*.tar.gz; do
+            sha256sum "$file" | awk '{print $1 "  " $2}' > "${file}.sha256"
+          done
 
-          # Generate checksum for Darwin tar.gz
-          darwinChecksumFile="$outputDir/KubeSnapIt-darwin-amd64-$version.sha256"
-          sha256sum "$darwinFile" | awk '{print $1 "  KubeSnapIt-darwin-amd64-'$version'.tar.gz"}' > "$darwinChecksumFile"
+      # Update KubeSnapIt.yaml with the new version, URLs, and checksums
+      - name: Update KubeSnapIt.yaml
+        run: |
+          version="${{ github.ref_name }}"
+          outputDir="krewplugin"
 
-      # # After uploading the Darwin checksum file as a release asset
-      # - name: Update Plugin YAML File
-      #   shell: pwsh  # Use PowerShell
-      #   run: |
-      #     # Read the existing YAML file
-      #     $yamlPath = "KubeSnapIt.yaml"  # File is in the root of the repository
-      #     $content = Get-Content -Path $yamlPath -Raw
-        
-      #     # Define the new SHA256 checksums
-      #     $version = "${{ github.ref_name }}"
-      #     $linuxSha256 = Get-Content -Path "krewplugin/KubeSnapIt-linux-amd64-$version.sha256" | Select-Object -First 1
-      #     $darwinSha256 = Get-Content -Path "krewplugin/KubeSnapIt-darwin-amd64-$version.sha256" | Select-Object -First 1
-        
-      #     # Update the version and SHA256 values in the content
-      #     $content = $content -replace '(?<=version: v)[^"]*', $version
-      #     $content = $content -replace '(?<=sha256: ")[^"]*', $linuxSha256 -replace 'linux', 'darwin'
-      #     $content = $content -replace '(?<=sha256: ")[^"]*', $darwinSha256
-        
-      #     # Save the updated content back to the YAML file
-      #     Set-Content -Path $yamlPath -Value $content
-        
-      #     # Commit the changes
-      #     git config --global user.email "you@example.com"  # Replace with your email
-      #     git config --global user.name "Your Name"  # Replace with your name
-      #     git add $yamlPath
-      #     git commit -m "Update KubeSnapIt plugin SHA256 checksums and version for $version"
-      #     git push origin HEAD:${{ github.ref_name }}
-      #   env:
-      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Extract SHA256 checksums for each platform
+          sha_linux_amd64=$(cat "$outputDir/KubeSnapIt-linux-amd64-$version.tar.gz.sha256" | awk '{print $1}')
+          sha_linux_arm64=$(cat "$outputDir/KubeSnapIt-linux-arm64-$version.tar.gz.sha256" | awk '{print $1}')
+          sha_darwin_amd64=$(cat "$outputDir/KubeSnapIt-darwin-amd64-$version.tar.gz.sha256" | awk '{print $1}')
+          sha_darwin_arm64=$(cat "$outputDir/KubeSnapIt-darwin-arm64-$version.tar.gz.sha256" | awk '{print $1}')
 
+          # Read the KubeSnapIt.yaml template and update it with the new version and checksums
+          # Update version
+          sed -i "s/version:.*/version: \"$version\"/" KubeSnapIt.yaml
+          
+          # Update URLs and corresponding SHA256 checksums for each platform
+          # Linux AMD64
+          sed -i "s#uri: .*linux-amd64.*#uri: https://github.com/KubeDeckio/KubeSnapIt/releases/download/$version/KubeSnapIt-linux-amd64-$version.tar.gz#" KubeSnapIt.yaml
+          sed -i "/uri: .*linux-amd64.*/!b;n;s/sha256: \".*\"/sha256: \"$sha_linux_amd64\"/" KubeSnapIt.yaml
+          
+          # Linux ARM64
+          sed -i "s#uri: .*linux-arm64.*#uri: https://github.com/KubeDeckio/KubeSnapIt/releases/download/$version/KubeSnapIt-linux-arm64-$version.tar.gz#" KubeSnapIt.yaml
+          sed -i "/uri: .*linux-arm64.*/!b;n;s/sha256: \".*\"/sha256: \"$sha_linux_arm64\"/" KubeSnapIt.yaml
+          
+          # Darwin AMD64
+          sed -i "s#uri: .*darwin-amd64.*#uri: https://github.com/KubeDeckio/KubeSnapIt/releases/download/$version/KubeSnapIt-darwin-amd64-$version.tar.gz#" KubeSnapIt.yaml
+          sed -i "/uri: .*darwin-amd64.*/!b;n;s/sha256: \".*\"/sha256: \"$sha_darwin_amd64\"/" KubeSnapIt.yaml
+          
+          # Darwin ARM64
+          sed -i "s#uri: .*darwin-arm64.*#uri: https://github.com/KubeDeckio/KubeSnapIt/releases/download/$version/KubeSnapIt-darwin-arm64-$version.tar.gz#" KubeSnapIt.yaml
+          sed -i "/uri: .*darwin-arm64.*/!b;n;s/sha256: \".*\"/sha256: \"$sha_darwin_arm64\"/" KubeSnapIt.yaml
 
       # Create a GitHub release and upload the tar.gz files
       - name: Create GitHub Release
@@ -212,47 +218,23 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Upload the Linux tar.gz Release Asset
-      - name: Upload Linux Release Asset
-        uses: actions/upload-release-asset@v1
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ${{ github.workspace }}/krewplugin/KubeSnapIt-linux-amd64-${{ github.ref_name }}.tar.gz
-          asset_name: KubeSnapIt-linux-amd64-${{ github.ref_name }}.tar.gz
-          asset_content_type: application/gzip
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Upload Release Assets (Including KubeSnapIt.yaml)
+      - name: Upload Release Assets
+        run: |
+          version="${{ github.ref_name }}"
+          outputDir="krewplugin"
 
-      # Upload the Darwin tar.gz Release Asset
-      - name: Upload Darwin Release Asset
-        uses: actions/upload-release-asset@v1
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ${{ github.workspace }}/krewplugin/KubeSnapIt-darwin-amd64-${{ github.ref_name }}.tar.gz
-          asset_name: KubeSnapIt-darwin-amd64-${{ github.ref_name }}.tar.gz
-          asset_content_type: application/gzip
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Upload each tar.gz file and its corresponding sha256 file
+          for file in "$outputDir"/*.tar.gz; do
+            asset_name=$(basename "$file")
+            checksum_name="${asset_name}.sha256"
 
-      # Upload the Linux checksum file as a release asset
-      - name: Upload Linux Checksum Release Asset
-        uses: actions/upload-release-asset@v1
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ${{ github.workspace }}/krewplugin/KubeSnapIt-linux-amd64-${{ github.ref_name }}.sha256
-          asset_name: KubeSnapIt-linux-amd64-${{ github.ref_name }}.sha256
-          asset_content_type: text/plain
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            gh release upload "$version" "$file" --clobber
+            gh release upload "$version" "${file}.sha256" --clobber
+          done
 
-      # Upload the Darwin checksum file as a release asset
-      - name: Upload Darwin Checksum Release Asset
-        uses: actions/upload-release-asset@v1
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ${{ github.workspace }}/krewplugin/KubeSnapIt-darwin-amd64-${{ github.ref_name }}.sha256
-          asset_name: KubeSnapIt-darwin-amd64-${{ github.ref_name }}.sha256
-          asset_content_type: text/plain
+          # Upload KubeSnapIt.yaml to the release
+          gh release upload "$version" "KubeSnapIt.yaml" --clobber
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -263,10 +245,10 @@ jobs:
           $gitVersion = "${{ github.ref_name }}"
           $version = $gitVersion -replace 'v',''
           $changelogPath = "CHANGELOG.md"
-      
+        
           # Read the entire CHANGELOG.md content
           $changelogContent = Get-Content -Path $changelogPath -Raw
-      
+        
           # Extract the section for the specific version
           if ($changelogContent -match "(?s)## \[$version\].*?(?=## \[|$)") {
               $changelog = $matches[0]
@@ -274,17 +256,17 @@ jobs:
               Write-Host "No changelog found for version $version."
               exit 1
           }
-      
+        
           # Save the changelog to a file
           $changelog | Out-File -FilePath "release_notes.md" -Encoding utf8
           Write-Host "Release notes saved to release_notes.md."
-      
+        
           # Check if the file was created successfully
           if (-Not (Test-Path "release_notes.md")) {
               Write-Host "Failed to create release_notes.md."
               exit 1
           }
-      
+        
           # Use the GitHub CLI to update the release with the notes
           gh release edit $gitVersion -F release_notes.md  # Use -F to read release notes from the file
         env:
