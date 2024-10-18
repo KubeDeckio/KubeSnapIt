@@ -83,6 +83,7 @@ function Invoke-KubeSnapIt {
         [switch]$Restore,
         [switch]$Compare,
         [switch]$CompareWithCluster,
+        [switch]$Force,
         [Alias("h")] [switch]$Help
     )
     # END PARAM BLOCK
@@ -102,6 +103,7 @@ function Invoke-KubeSnapIt {
         Write-Host "  -Restore             Restore snapshots from the specified directory or file."
         Write-Host "  -Compare             Compare two snapshots or compare a snapshot with the current cluster state."
         Write-Host "  -CompareWithCluster  Compare a snapshot with the current cluster state instead of another snapshot."
+        Write-Host "  -Force               Force the action without prompting for confirmation."
         Write-Host "  -Verbose             Show detailed output during the snapshot, restore, or comparison process."
         Write-Host "  -Help                Display this help message."
         return
@@ -120,31 +122,30 @@ function Invoke-KubeSnapIt {
         Write-Verbose "'kubectl' is installed."
     }
 
-# Get the current Kubernetes context
-$context = kubectl config current-context
+    # Get the current Kubernetes context
+    $context = kubectl config current-context
 
-if ($context) {
-    # Add lines and styling to make it stand out
-    Write-Host ""
-    Write-Host "=========================================" -ForegroundColor Cyan
-    Write-Host "YOU ARE CONNECTED TO A KUBERNETES CLUSTER" -ForegroundColor Cyan
-    Write-Host "=========================================" -ForegroundColor Cyan
-    Write-Host ""
-    Write-Host "Kubernetes Context: $context" -ForegroundColor Green
-    # Get cluster details from current context
-    $clusterInfo = kubectl config view -o jsonpath="{.contexts[?(@.name=='$context')].context.cluster}"
-    Write-Host "Kubernetes Cluster: $clusterInfo" -ForegroundColor Green
-    Write-Host ""
-    Write-Host "=========================================" -ForegroundColor Cyan
-    Write-Host ""
-} else {
-    Write-Host "You are not connected to any Kubernetes cluster." -ForegroundColor Red
-    Write-Host "Please configure a Kubernetes cluster to connect to." -ForegroundColor Red
-    Write-Host "Instructions to set up a cluster can be found here: https://kubernetes.io/docs/tasks/access-application-cluster/configure-access-multiple-clusters/" -ForegroundColor Yellow
-    Write-Host "You can set the current context using the command: 'kubectl config use-context <context-name>'." -ForegroundColor Yellow
-    exit
-}
-
+    if ($context) {
+        # Add lines and styling to make it stand out
+        Write-Host ""
+        Write-Host "=========================================" -ForegroundColor Cyan
+        Write-Host "YOU ARE CONNECTED TO A KUBERNETES CLUSTER" -ForegroundColor Cyan
+        Write-Host "=========================================" -ForegroundColor Cyan
+        Write-Host ""
+        Write-Host "Kubernetes Context: $context" -ForegroundColor Green
+        # Get cluster details from current context
+        $clusterInfo = kubectl config view -o jsonpath="{.contexts[?(@.name=='$context')].context.cluster}"
+        Write-Host "Kubernetes Cluster: $clusterInfo" -ForegroundColor Green
+        Write-Host ""
+        Write-Host "=========================================" -ForegroundColor Cyan
+        Write-Host ""
+    } else {
+        Write-Host "You are not connected to any Kubernetes cluster." -ForegroundColor Red
+        Write-Host "Please configure a Kubernetes cluster to connect to." -ForegroundColor Red
+        Write-Host "Instructions to set up a cluster can be found here: https://kubernetes.io/docs/tasks/access-application-cluster/configure-access-multiple-clusters/" -ForegroundColor Yellow
+        Write-Host "You can set the current context using the command: 'kubectl config use-context <context-name>'." -ForegroundColor Yellow
+        exit
+    }
 
     # Handle Restore operation
     if ($Restore) {
@@ -152,6 +153,7 @@ if ($context) {
             Write-Host "Error: You must specify an input path for the restore operation." -ForegroundColor Red
             return
         }
+
         # Call the Restore-KubeSnapshot function
         Restore-KubeSnapshot `
             -InputPath $InputPath `

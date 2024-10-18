@@ -41,11 +41,21 @@ kubectl KubeSnapIt diff --local-file "./snapshots/your_snapshot1.yaml" --compare
 
 ## Resource Restoration
 
-To restore a Kubernetes resource from a snapshot:
+To restore a Kubernetes resource from a snapshot using `kubectl KubeSnapIt`, use the following command. By default, this will ask for confirmation before restoring:
 
 ```bash
 kubectl KubeSnapIt restore --input-path "./snapshots/your_snapshot.yaml"
 ```
+
+### Skipping Confirmation with `--force`
+
+If you want to bypass the confirmation prompt and restore the resources immediately, use the `--force` option:
+
+```bash
+kubectl KubeSnapIt restore --input-path "./snapshots/your_snapshot.yaml" --force
+```
+
+This command restores the resources from the specified snapshot without asking for confirmation.
 
 ## Dry Run Mode
 
