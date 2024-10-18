@@ -171,14 +171,14 @@ function Invoke-KubeSnapIt {
         # Comparison with the current cluster state
         if ($CompareWithCluster) {
             Write-Verbose "Comparing snapshot with current cluster state: $InputPath"
-            CompareFiles `
+            Compare-Files `
                 -LocalFile $InputPath `
                 -Verbose:$Verbose
         }
         # Comparison between two snapshots
         elseif ($ComparePath) {
             Write-Verbose "Comparing two snapshots: $InputPath and $ComparePath"
-            CompareFiles `
+            Compare-Files `
                 -LocalFile $InputPath `
                 -CompareFile $ComparePath `
                 -Verbose:$Verbose

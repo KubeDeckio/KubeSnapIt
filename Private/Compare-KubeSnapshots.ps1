@@ -224,7 +224,7 @@ function Compare-Lines {
     }
 }
 
-function CompareFiles {
+function Compare-Files {
     param (
         [Parameter(Mandatory=$true)]
         [string]$LocalFile,         # The local manifest file path
