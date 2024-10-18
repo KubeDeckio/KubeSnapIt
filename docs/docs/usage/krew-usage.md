@@ -11,6 +11,25 @@ If you're using **KubeSnapIt** via Krew as a `kubectl` plugin (Linux/macOS), her
 
 > **Note:** Ensure you are connected to your Kubernetes cluster before using KubeSnapIt. You can use `kubectl` commands to check your connection and manage your contexts.
 
+## Parameters
+
+| Parameter            | Description                                                                 |
+|----------------------|-----------------------------------------------------------------------------|
+| `-Namespace`         | Specifies the namespace to snapshot or restore.                             |
+| `-AllNamespaces`     | Captures or restores all namespaces. Overrides the `-Namespace` parameter.   |
+| `-OutputPath`        | Path to save the snapshot files.                                             |
+| `-InputPath`         | Path to restore snapshots from or for comparison.                           |
+| `-ComparePath`       | Path to the second snapshot for comparison.                                 |
+| `-Labels`            | Filters Kubernetes objects based on specified labels (e.g., `app=nginx`).   |
+| `-Objects`           | Comma-separated list of specific objects in the `kind/name` format.          |
+| `-DryRun`            | Simulates snapshotting or restoring without making any actual changes.       |
+| `-Restore`           | Restores resources from the specified snapshot path.                        |
+| `-Compare`           | Compares two snapshots or a snapshot with the current cluster state.         |
+| `-CompareWithCluster`| Compares a snapshot with the current cluster state.                         |
+| `-Force`             | Bypasses confirmation prompts when restoring snapshots.                     |
+| `-Verbose`           | Shows detailed output during the snapshot, restore, or comparison process.   |
+| `-Help`              | Displays the help information for using `KubeSnapIt`.                       |
+
 ## Resource Snapshotting
 
 To capture a snapshot of Kubernetes resources in a specific namespace:
