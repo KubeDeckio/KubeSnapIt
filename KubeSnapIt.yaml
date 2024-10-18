@@ -1,0 +1,47 @@
+apiVersion: krew.googlecontainertools.github.com/v1alpha2
+kind: Plugin
+metadata:
+  name: KubeSnapIt
+spec:
+  version: "v0.0.2"  # Updated version dynamically
+  homepage: https://KubeSnapIt.io
+  platforms:
+  - selector:
+      matchLabels:
+        os: darwin
+        arch: amd64
+    uri: https://github.com/PixelRobots/KubeSnapIt/releases/download/v0.0.2/KubeSnapIt-darwin-amd64-v0.0.2.tar.gz
+    sha256: "your_sha256_for_darwin_amd64"
+    bin: kubectl-KubeSnapIt
+  - selector:
+      matchLabels:
+        os: darwin
+        arch: arm64
+    uri: https://github.com/PixelRobots/KubeSnapIt/releases/download/v0.0.2/KubeSnapIt-darwin-arm64-v0.0.2.tar.gz
+    sha256: "your_sha256_for_darwin_arm64"
+    bin: kubectl-KubeSnapIt
+  - selector:
+      matchLabels:
+        os: linux
+        arch: amd64
+    uri: https://github.com/PixelRobots/KubeSnapIt/releases/download/v0.0.2/KubeSnapIt-linux-amd64-v0.0.2.tar.gz
+    sha256: "your_sha256_for_linux_amd64"
+    bin: kubectl-KubeSnapIt
+  - selector:
+      matchLabels:
+        os: linux
+        arch: arm64
+    uri: https://github.com/PixelRobots/KubeSnapIt/releases/download/v0.0.2/KubeSnapIt-linux-arm64-v0.0.2.tar.gz
+    sha256: "your_sha256_for_linux_arm64"
+    bin: kubectl-KubeSnapIt
+  shortDescription: "A tool to clean up your Kubernetes config."
+  description: |
+    KubeSnapIt cleans up your Kubernetes config file by removing unreachable clusters and associated users and contexts or merging multiple config files.
+    
+    **Requirements:**
+    - PowerShell 7 or higher must be installed.
+    
+    Read more documentation at: https://github.com/PixelRobots/KubeSnapIt
+  caveats: |
+    **Requirements:**
+    - PowerShell 7 or higher must be installed.

@@ -3,9 +3,9 @@
 # MARKER: NEW PARAM BLOCK
 
 # Dot Source all functions in all ps1 files located in this module
-# Define the path to the local Private directory and Krew storage directory for KubeTidy
+# Define the path to the local Private directory and Krew storage directory for KubeSnapIt
 $localPrivateDir = "$PSScriptRoot\Private"  # Local Private directory
-$krewStorageDir = "$HOME/.krew/store/kubetidy"  # Krew storage directory
+$krewStorageDir = "$HOME/.krew/store/KubeSnapIt"  # Krew storage directory
 
 # Check if the local Private directory exists
 if (Test-Path -Path $localPrivateDir) {
@@ -23,7 +23,7 @@ if (Test-Path -Path $localPrivateDir) {
 else {
     Write-Verbose "Local Private directory not found, checking Krew storage."
 
-    # Check if the KubeTidy storage directory exists
+    # Check if the KubeSnapIt storage directory exists
     if (Test-Path -Path $krewStorageDir) {
         Write-Verbose "Checking for available versions in $krewStorageDir."
 
@@ -62,7 +62,7 @@ else {
         }
     }
     else {
-        Write-Error "Krew storage directory for KubeTidy not found. Exiting."
+        Write-Error "Krew storage directory for KubeSnapIt not found. Exiting."
         exit 1
     }
 }
