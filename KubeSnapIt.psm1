@@ -157,6 +157,7 @@ function Invoke-KubeSnapIt {
         # Call the Restore-KubeSnapshot function
         Restore-KubeSnapshot `
             -InputPath $InputPath `
+            -Force $Force `
             -Verbose:$Verbose
         return
     }
