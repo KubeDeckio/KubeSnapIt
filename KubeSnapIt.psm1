@@ -19,7 +19,8 @@ if (Test-Path -Path $localPrivateDir) {
         Write-Verbose "Executing script: $($script.FullName)"
         . $script.FullName  # Call the script
     }
-} else {
+}
+else {
     Write-Verbose "Local Private directory not found, checking Krew storage."
 
     # Check if the KubeTidy storage directory exists
@@ -49,15 +50,18 @@ if (Test-Path -Path $localPrivateDir) {
                     Write-Verbose "Executing script: $($script.FullName)"
                     . $script.FullName  # Call the script
                 }
-            } else {
+            }
+            else {
                 Write-Error "No Private directory found for the latest version: $($latestVersionDir.Name). Exiting."
                 exit 1
             }
-        } else {
+        }
+        else {
             Write-Error "No version directories found in $krewStorageDir. Exiting."
             exit 1
         }
-    } else {
+    }
+    else {
         Write-Error "Krew storage directory for KubeTidy not found. Exiting."
         exit 1
     }
@@ -103,13 +107,44 @@ function Invoke-KubeSnapIt {
         return
     }
 
+    Show-KubeSnapItBanner
+
     # Check if kubectl is installed for actions that require it
-    if (($Restore -or $CompareWithCluster) -and (-not (Get-Command "kubectl" -ErrorAction SilentlyContinue))) {
+    if (!(Get-Command "kubectl" -ErrorAction SilentlyContinue)) {
         Write-Host "'kubectl' is not installed or not found in your system's PATH." -ForegroundColor Red
         Write-Host "Please install 'kubectl' before running KubeSnapIt." -ForegroundColor Red
         Write-Host "You can install 'kubectl' from: https://kubernetes.io/docs/tasks/tools/install-kubectl/" -ForegroundColor Yellow
-        return
+        exit
     }
+    else {
+        Write-Verbose "'kubectl' is installed."
+    }
+
+# Get the current Kubernetes context
+$context = kubectl config current-context
+
+if ($context) {
+    # Add lines and styling to make it stand out
+    Write-Host ""
+    Write-Host "=========================================" -ForegroundColor Cyan
+    Write-Host "YOU ARE CONNECTED TO A KUBERNETES CLUSTER" -ForegroundColor Cyan
+    Write-Host "=========================================" -ForegroundColor Cyan
+    Write-Host ""
+    Write-Host "Kubernetes Context: $context" -ForegroundColor Green
+    # Get cluster details from current context
+    $clusterInfo = kubectl config view -o jsonpath="{.contexts[?(@.name=='$context')].context.cluster}"
+    Write-Host "Kubernetes Cluster: $clusterInfo" -ForegroundColor Green
+    Write-Host ""
+    Write-Host "=========================================" -ForegroundColor Cyan
+    Write-Host ""
+} else {
+    Write-Host "You are not connected to any Kubernetes cluster." -ForegroundColor Red
+    Write-Host "Please configure a Kubernetes cluster to connect to." -ForegroundColor Red
+    Write-Host "Instructions to set up a cluster can be found here: https://kubernetes.io/docs/tasks/access-application-cluster/configure-access-multiple-clusters/" -ForegroundColor Yellow
+    Write-Host "You can set the current context using the command: 'kubectl config use-context <context-name>'." -ForegroundColor Yellow
+    exit
+}
+
 
     # Handle Restore operation
     if ($Restore) {
@@ -118,7 +153,6 @@ function Invoke-KubeSnapIt {
             return
         }
         # Call the Restore-KubeSnapshot function
-        Show-KubeSnapItBanner
         Restore-KubeSnapshot `
             -InputPath $InputPath `
             -Verbose:$Verbose
@@ -135,7 +169,6 @@ function Invoke-KubeSnapIt {
         # Comparison with the current cluster state
         if ($CompareWithCluster) {
             Write-Verbose "Comparing snapshot with current cluster state: $InputPath"
-            Show-KubeSnapItBanner
             CompareFiles `
                 -LocalFile $InputPath `
                 -Verbose:$Verbose
@@ -143,7 +176,6 @@ function Invoke-KubeSnapIt {
         # Comparison between two snapshots
         elseif ($ComparePath) {
             Write-Verbose "Comparing two snapshots: $InputPath and $ComparePath"
-            Show-KubeSnapItBanner
             CompareFiles `
                 -LocalFile $InputPath `
                 -CompareFile $ComparePath `
@@ -178,7 +210,6 @@ function Invoke-KubeSnapIt {
         }
 
         # Call the snapshot function
-        Show-KubeSnapItBanner
         try {
             Save-KubeSnapshot `
                 -Namespace $Namespace `

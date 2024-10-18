@@ -13,6 +13,37 @@ function Save-KubeSnapshot {
         Import-Module powershell-yaml
     }
 
+    # Function to run kubectl command and return output
+    function Invoke-KubectlCommand {
+        param (
+            [string]$command     # kubectl command without the 'kubectl' part
+        )
+        $processInfo = New-Object System.Diagnostics.ProcessStartInfo
+        $processInfo.FileName = "kubectl"
+        $processInfo.Arguments = $command
+        $processInfo.RedirectStandardOutput = $true
+        $processInfo.RedirectStandardError = $true
+        $processInfo.UseShellExecute = $false
+        $processInfo.CreateNoWindow = $true
+
+        $process = New-Object System.Diagnostics.Process
+        $process.StartInfo = $processInfo
+
+        # Start the kubectl process
+        $process.Start() | Out-Null
+
+        # Capture output and error
+        $output = $process.StandardOutput.ReadToEnd()
+        $stderr = $process.StandardError.ReadToEnd()
+        $process.WaitForExit()
+
+        if ($stderr) {
+            Write-Host "Error running kubectl command: $stderr" -ForegroundColor Red
+        }
+
+        return $output
+    }
+
     # Define resource kinds
     $namespacedResources = @(
         "deployments", 
@@ -49,52 +80,33 @@ function Save-KubeSnapshot {
     if ($AllNamespaces) {
         $namespaceOption = "--all-namespaces"
         $unmanagedPodsCmd += " --all-namespaces"
-    } elseif ($Namespace) {
+    }
+    elseif ($Namespace) {
+        # Check if the namespace exists
+        $namespaceCheck = Invoke-KubectlCommand "get namespace $Namespace" 2>$null
+        if (-not $namespaceCheck) {
+            Write-Host "Namespace '$Namespace' does not exist in the cluster." -ForegroundColor Red
+            return
+        }
+
         $namespaceOption = "-n $Namespace"
         $unmanagedPodsCmd += " -n $Namespace"
-    } else {
+    }
+    else {
         $namespaceOption = ""
     }
 
     if ($Labels) {
         $labelOption = "-l $Labels"
         $unmanagedPodsCmd += " -l $Labels"
-    } else {
+    }
+    else {
         $labelOption = ""
     }
 
     if (-not $DryRun) {
         try {
-            # Function to run kubectl command and return output
-            function Invoke-KubectlCommand {
-                param (
-                    [string]$command     # kubectl command without the 'kubectl' part
-                )
-                $processInfo = New-Object System.Diagnostics.ProcessStartInfo
-                $processInfo.FileName = "kubectl"
-                $processInfo.Arguments = $command
-                $processInfo.RedirectStandardOutput = $true
-                $processInfo.RedirectStandardError = $true
-                $processInfo.UseShellExecute = $false
-                $processInfo.CreateNoWindow = $true
-
-                $process = New-Object System.Diagnostics.Process
-                $process.StartInfo = $processInfo
-
-                # Start the kubectl process
-                $process.Start() | Out-Null
-
-                # Capture output and error
-                $output = $process.StandardOutput.ReadToEnd()
-                $stderr = $process.StandardError.ReadToEnd()
-                $process.WaitForExit()
-
-                if ($stderr) {
-                    Write-Host "Error running kubectl command: $stderr" -ForegroundColor Red
-                }
-
-                return $output
-            }
+            $resourcesFound = $false  # Flag to track if any resources are found
 
             # If specific objects are provided, process them first
             if ($Objects) {
@@ -107,6 +119,7 @@ function Save-KubeSnapshot {
                     $resourceOutput = Invoke-KubectlCommand $kubectlCmd
 
                     if ($resourceOutput) {
+                        $resourcesFound = $true  # Resources found
                         $resourceOutputYaml = $resourceOutput | ConvertFrom-Yaml
                         $resourceName = $resourceOutputYaml.metadata.name
                         $kind = $resourceOutputYaml.kind
@@ -123,7 +136,8 @@ function Save-KubeSnapshot {
                         Write-Host "$kind '$resourceName' snapshot saved: $resourceFile" -ForegroundColor Green
                     }
                 }
-            } else {
+            }
+            else {
                 # Capture namespaced resources if not in AllNamespaces mode
                 if (-not $AllNamespaces -and $Namespace) {
                     foreach ($resource in $namespacedResources) {
@@ -137,41 +151,7 @@ function Save-KubeSnapshot {
                             continue
                         }
 
-                        # Convert JSON to objects for easier processing
-                        $resourceOutputJson = $resourceOutput | ConvertFrom-Json
-
-                        # Process each individual item in the resource output
-                        foreach ($item in $resourceOutputJson.items) {
-                            $resourceName = $item.metadata.name
-                            $kind = $item.kind
-                            $timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
-
-                            # Sanitize the resourceName by replacing invalid characters with underscores
-                            $safeResourceName = $resourceName -replace "[:\\/]", "_"
-
-                            # Generate a filename based on the kind and name of the resource
-                            $resourceFile = Join-Path -Path $OutputPath -ChildPath "${kind}_${safeResourceName}_$timestamp.yaml"
-
-                            # Convert the item back to YAML and save it
-                            $item | ConvertTo-Yaml | Out-File -FilePath $resourceFile -Force
-                            Write-Verbose "Saving $kind '$resourceName' snapshot to: $resourceFile"
-                            Write-Host "$kind '$resourceName' snapshot saved: $resourceFile" -ForegroundColor Green
-                        }
-                    }
-                }
-
-                # Capture cluster-scoped resources if AllNamespaces is specified
-                if ($AllNamespaces) {
-                    foreach ($resource in $clusterScopedResources) {
-                        $kubectlCmd = "get $resource -o json" # No namespace option for cluster-scoped resources
-                        Write-Verbose "Running command: kubectl $kubectlCmd"
-                        $resourceOutput = Invoke-KubectlCommand $kubectlCmd
-
-                        # Skip if the resource does not exist (i.e., no items)
-                        if (-not $resourceOutput -or $resourceOutput -eq "null" -or $resourceOutput.Contains('"items": []')) {
-                            Write-Verbose "No $resource found. Skipping."
-                            continue
-                        }
+                        $resourcesFound = $true  # Resources found
 
                         # Convert JSON to objects for easier processing
                         $resourceOutputJson = $resourceOutput | ConvertFrom-Json
@@ -195,11 +175,13 @@ function Save-KubeSnapshot {
                         }
                     }
                 }
+                
 
                 # Capture unmanaged pods (those without ownerReferences)
                 Write-Verbose "Running command for unmanaged pods: $unmanagedPodsCmd"
                 $unmanagedPodsOutput = Invoke-KubectlCommand $unmanagedPodsCmd
                 if ($unmanagedPodsOutput) {
+                    $resourcesFound = $true  # Resources found
                     $unmanagedPodsOutputJson = $unmanagedPodsOutput | ConvertFrom-Json
                     foreach ($pod in $unmanagedPodsOutputJson.items) {
                         if (-not $pod.metadata.ownerReferences) {
@@ -214,10 +196,63 @@ function Save-KubeSnapshot {
                     }
                 }
             }
-        } catch {
+
+            # Capture cluster-scoped resources if AllNamespaces is specified
+            if ($AllNamespaces) {
+                $clusterResourcesFound = $false  # Track if any cluster-scoped resources are found
+
+                foreach ($resource in $clusterScopedResources) {
+                    $kubectlCmd = "get $resource -o json" # No namespace option for cluster-scoped resources
+                    Write-Verbose "Running command: kubectl $kubectlCmd"
+                    $resourceOutput = Invoke-KubectlCommand $kubectlCmd
+
+                    # Skip if the resource does not exist (i.e., no items)
+                    if (-not $resourceOutput -or $resourceOutput -eq "null" -or $resourceOutput.Contains('"items": []')) {
+                        Write-Verbose "No $resource found. Skipping."
+                        continue
+                    }
+
+                    $clusterResourcesFound = $true  # Resources found
+
+                    # Convert JSON to objects for easier processing
+                    $resourceOutputJson = $resourceOutput | ConvertFrom-Json
+
+                    # Process each individual item in the resource output
+                    foreach ($item in $resourceOutputJson.items) {
+                        $resourceName = $item.metadata.name
+                        $kind = $item.kind
+                        $timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
+
+                        # Sanitize the resourceName by replacing invalid characters with underscores
+                        $safeResourceName = $resourceName -replace "[:\\/]", "_"
+
+                        # Generate a filename based on the kind and name of the resource
+                        $resourceFile = Join-Path -Path $OutputPath -ChildPath "${kind}_${safeResourceName}_$timestamp.yaml"
+
+                        # Convert the item back to YAML and save it
+                        $item | ConvertTo-Yaml | Out-File -FilePath $resourceFile -Force
+                        Write-Verbose "Saving $kind '$resourceName' snapshot to: $resourceFile"
+                        Write-Host "$kind '$resourceName' snapshot saved: $resourceFile" -ForegroundColor Green
+                    }
+                }
+
+                # If no cluster-scoped resources were found
+                if (-not $clusterResourcesFound) {
+                    Write-Host "No cluster-scoped resources found." -ForegroundColor Yellow
+                }
+            }
+
+            # If no resources were found in the namespace
+            if (-not $resourcesFound) {
+                Write-Host "No resources found in the namespace '$Namespace'." -ForegroundColor Yellow
+            }
+
+        }
+        catch {
             Write-Host "Error occurred while capturing the snapshot: $_" -ForegroundColor Red
         }
-    } else {
+    }
+    else {
         Write-Host "Dry run: No snapshot was taken."
     }
 }
