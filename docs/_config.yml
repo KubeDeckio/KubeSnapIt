@@ -41,6 +41,9 @@ nav_external_links:
   - title: Pixel Robots
     url: https://pixelrobots.co.uk
     opens_in_new_tab: true
+  - title: KubeDeck
+    url: https://KubeDeck.io
+    opens_in_new_tab: true
 
 # Show navigation error report
 nav_error_report: true # default is false/nil.
