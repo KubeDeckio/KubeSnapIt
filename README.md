@@ -12,6 +12,7 @@
 [![Publish Plugin to Krew](https://github.com/KubeDeckio/KubeSnapIt/actions/workflows/publish-krewplugin.yaml/badge.svg)](https://github.com/KubeDeckio/KubeSnapIt/actions/workflows/publish-krewplugin.yaml)
 ![PowerShell Gallery Version](https://img.shields.io/powershellgallery/v/KubeSnapIt.svg)
 ![Downloads](https://img.shields.io/powershellgallery/dt/KubeSnapIt.svg)
+![Krew Version](https://img.shields.io/github/v/release/KubeDeckio/KubeSnapIt?label=Krew%20Version)
 ![License](https://img.shields.io/github/license/PixelRobots/KubeSnapIt.svg)
 
 ---
