@@ -23,7 +23,7 @@ To update **KubeSnapIt**:
 Update-Module -Name KubeSnapIt
 ```
 
-<!-- ## Installing via Krew (Linux and macOS)
+## Installing via Krew (Linux and macOS)
 
 To install KubeSnapIt as a `kubectl` plugin using [Krew](https://krew.sigs.k8s.io/):
 
@@ -31,9 +31,15 @@ To install KubeSnapIt as a `kubectl` plugin using [Krew](https://krew.sigs.k8s.i
 2. **Install KubeSnapIt**: 
 
 ```bash
-curl -H "Cache-Control: no-cache" -O https://raw.githubusercontent.com/PixelRobots/KubeSnapIt/main/KubeSnapIt.yaml
+# Fetch the latest release tag using GitHub's API
+LATEST_VERSION=$(curl -s https://api.github.com/repos/KubeDeckio/KubeSnapIt/releases/latest | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/')
+
+# Download the KubeSnapIt.yaml file from the latest release
+curl -L -H "Cache-Control: no-cache" -O https://github.com/KubeDeckio/KubeSnapIt/releases/download/$LATEST_VERSION/KubeSnapIt.yaml
+
+# Install the plugin using the downloaded KubeSnapIt.yaml file
 kubectl krew install --manifest="./KubeSnapIt.yaml"
-``` -->
+```
 
 ## Requirements
 
