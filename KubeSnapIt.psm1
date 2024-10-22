@@ -212,6 +212,3 @@ function Invoke-KubeSnapIt {
         }
     }
 }
-
-
-Invoke-KubeSnapIt -InputPath "C:\Users\rhooper\OneDrive - Intercept\Documents\Git\KubeDeck\snapshot\ConfigMap_task-scheduler-configmap_2024-10-22_15-04-47.yaml" -CompareWithCluster -verbose
