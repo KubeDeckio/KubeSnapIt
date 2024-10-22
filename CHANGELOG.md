@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.4] - 2024-10-22
+
+### Added
+- **Separate Comparison Switches**: Introduced two distinct switches for comparison:
+  - `-CompareWithCluster`: Allows users to compare a snapshot against the current state of the Kubernetes cluster without requiring a namespace.
+  - `-CompareSnapshots`: Allows users to compare two snapshots, enabling more flexible comparison options.
+
+### Changed
+- **Refined Operation Logic**: Improved the internal logic to handle operations more clearly using `switch` statements, ensuring that each operation (Snapshot, Compare, Restore) is handled independently without unnecessary dependencies.
+- **Improved Error Messaging**: Enhanced error messages for missing required parameters specific to each operation, providing clearer feedback to users.
+
+### Fixed
+- **Namespace Requirement for Compare Operations**: Resolved the issue where comparing snapshots against the cluster incorrectly enforced namespace requirements, allowing users to perform comparisons without specifying a namespace.
+
 ## [0.0.3] - 2024-10-22
 
 ### Changed

@@ -68,7 +68,6 @@ else {
 }
 
 function Invoke-KubeSnapIt {
-
     # START PARAM BLOCK
     [CmdletBinding()]
     param (
@@ -81,8 +80,8 @@ function Invoke-KubeSnapIt {
         [string]$Objects = "",
         [switch]$DryRun,
         [switch]$Restore,
-        [switch]$Compare,
-        [switch]$CompareWithCluster,
+        [switch]$CompareWithCluster,  # Switch for comparing with the cluster
+        [switch]$CompareSnapshots,      # Switch for comparing two snapshots
         [switch]$Force,
         [Alias("h")] [switch]$Help
     )
@@ -101,15 +100,12 @@ function Invoke-KubeSnapIt {
         Write-Host "  -Objects             Comma-separated list of specific objects in the kind/name format (e.g., pod/my-pod, deployment/my-deployment)."
         Write-Host "  -DryRun              Simulate taking or restoring the snapshot without saving or applying files."
         Write-Host "  -Restore             Restore snapshots from the specified directory or file."
-        Write-Host "  -Compare             Compare two snapshots or compare a snapshot with the current cluster state."
-        Write-Host "  -CompareWithCluster  Compare a snapshot with the current cluster state instead of another snapshot."
+        Write-Host "  -CompareWithCluster  Compare a snapshot with the current cluster state."
+        Write-Host "  -CompareSnapshots     Compare two snapshots."
         Write-Host "  -Force               Force the action without prompting for confirmation."
-        Write-Host "  -Verbose             Show detailed output during the snapshot, restore, or comparison process."
         Write-Host "  -Help                Display this help message."
         return
     }
-
-    # Show-KubeSnapItBanner
 
     # Check if kubectl is installed for actions that require it
     if (!(Get-Command "kubectl" -ErrorAction SilentlyContinue)) {
@@ -117,9 +113,6 @@ function Invoke-KubeSnapIt {
         Write-Host "Please install 'kubectl' before running KubeSnapIt." -ForegroundColor Red
         Write-Host "You can install 'kubectl' from: https://kubernetes.io/docs/tasks/tools/install-kubectl/" -ForegroundColor Yellow
         exit
-    }
-    else {
-        Write-Verbose "'kubectl' is installed."
     }
 
     # Get the current Kubernetes context
@@ -147,90 +140,78 @@ function Invoke-KubeSnapIt {
         exit
     }
 
-    # Handle Restore operation
-    if ($Restore) {
-        if (-not $InputPath) {
-            Write-Host "Error: You must specify an input path for the restore operation." -ForegroundColor Red
+    # Determine the operation type using switch
+    switch ($true) {
+        # Handle Restore operation
+        { $Restore } {
+            if (-not $InputPath) {
+                Write-Host "Error: You must specify an input path for the restore operation." -ForegroundColor Red
+                return
+            }
+            # Call the Restore-KubeSnapshot function
+            Restore-KubeSnapshot -InputPath $InputPath -Force $Force -Verbose:$Verbose
             return
         }
 
-        # Call the Restore-KubeSnapshot function
-        Restore-KubeSnapshot `
-            -InputPath $InputPath `
-            -Force $Force `
-            -Verbose:$Verbose
-        return
-    }
+        # Handle Compare with Cluster operation
+        { $CompareWithCluster } {
+            if (-not $InputPath) {
+                Write-Host "Error: You must specify a snapshot path for comparison." -ForegroundColor Red
+                return
+            }
 
-    # Handle Compare operation
-    if ($Compare) {
-        if (-not $InputPath) {
-            Write-Host "Error: You must specify a snapshot path for comparison." -ForegroundColor Red
-            return
-        }
-
-        # Comparison with the current cluster state
-        if ($CompareWithCluster) {
             Write-Verbose "Comparing snapshot with current cluster state: $InputPath"
-            Compare-Files `
-                -LocalFile $InputPath `
-                -Verbose:$Verbose
+            Compare-Files -LocalFile $InputPath -Verbose:$Verbose
+            return
         }
-        # Comparison between two snapshots
-        elseif ($ComparePath) {
-            Write-Verbose "Comparing two snapshots: $InputPath and $ComparePath"
-            Compare-Files `
-                -LocalFile $InputPath `
-                -CompareFile $ComparePath `
-                -Verbose:$Verbose
-        }
-        else {
-            Write-Host "Error: You must specify either -CompareWithCluster or a second snapshot for comparison (-ComparePath)." -ForegroundColor Red
-        }
-        return
-    }
 
-    # Handle Snapshot operation (default)
-    if ($Namespace -or $AllNamespaces) {
-        # Set output path and create directory if it doesn't exist
-        try {
+        # Handle Compare Snapshots operation
+        { $CompareSnapshots } {
+            if (-not $InputPath) {
+                Write-Host "Error: You must specify a snapshot path for comparison." -ForegroundColor Red
+                return
+            }
+
+            # Ensure ComparePath is provided for snapshot comparison
+            if (-not [string]::IsNullOrWhiteSpace($ComparePath)) {
+                Write-Verbose "Comparing two snapshots: $InputPath and $ComparePath"
+                Compare-Files -LocalFile $InputPath -CompareFile $ComparePath -Verbose:$Verbose
+                return
+            } else {
+                Write-Host "Error: You must specify a second snapshot for comparison (-ComparePath)." -ForegroundColor Red
+                return
+            }
+        }
+
+        # Handle Snapshot operation
+        { $Namespace -or $AllNamespaces } {
+            # Set output path and create directory if it doesn't exist
             if (-not (Test-Path -Path $OutputPath)) {
                 New-Item -Path $OutputPath -ItemType Directory -Force | Out-Null
                 Write-Verbose "Output directory created: $OutputPath"
             }
-            else {
-                Write-Verbose "Output directory already exists: $OutputPath"
+
+            Write-Verbose "Starting snapshot process..."
+            if ($DryRun) {
+                Write-Host "Dry run enabled. No files will be saved." -ForegroundColor Yellow
             }
-        }
-        catch {
-            Write-Host "Error creating output directory: $_" -ForegroundColor Red
-            return  # Exit the function if directory creation fails
+
+            # Call the snapshot function
+            try {
+                Save-KubeSnapshot -Namespace $Namespace -AllNamespaces:$AllNamespaces -Labels $Labels -Objects $Objects -OutputPath $OutputPath -DryRun:$DryRun -Verbose:$Verbose
+            } catch {
+                Write-Host "Error occurred during the snapshot process: $_" -ForegroundColor Red
+            }
+            return
         }
 
-        Write-Verbose "Starting snapshot process..."
-        if ($DryRun) {
-            Write-Host "Dry run enabled. No files will be saved." -ForegroundColor Yellow
+        # If none of the operations match, display an error
+        default {
+            Write-Host "Error: You must specify either -Restore, -CompareWithCluster, or -CompareSnapshots with a valid operation." -ForegroundColor Red
+            return
         }
-
-        # Call the snapshot function
-        try {
-            Save-KubeSnapshot `
-                -Namespace $Namespace `
-                -AllNamespaces:$AllNamespaces `
-                -Labels $Labels `
-                -Objects $Objects `
-                -OutputPath $OutputPath `
-                -DryRun:$DryRun `
-                -Verbose:$Verbose
-        }
-        catch {
-            Write-Host "Error occurred during the snapshot process: $_" -ForegroundColor Red
-        }
-    }
-    else {
-        Write-Host "Error: You must specify either -Namespace or -AllNamespaces." -ForegroundColor Red
-        return
     }
 }
 
-# MARKER: FUNCTION CALL
+
+Invoke-KubeSnapIt -InputPath "C:\Users\rhooper\OneDrive - Intercept\Documents\Git\KubeDeck\snapshot\ConfigMap_task-scheduler-configmap_2024-10-22_15-04-47.yaml" -CompareWithCluster -verbose
