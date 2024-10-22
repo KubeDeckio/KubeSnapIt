@@ -197,31 +197,27 @@ function Compare-Lines {
     # Add a note for whitespace representation
     Write-Host "`nNote: Spaces are represented as '␣' in the output." -ForegroundColor Magenta
 
-    # Boxed output format for the results
-    Write-Host ""
-    Write-Host "╔════════════════════════════════════════════════╗" -ForegroundColor Magenta
-    Write-Host "║               Comparison Summary               ║" -ForegroundColor Magenta
-    Write-Host "╠════════════════════════════════════════════════╣" -ForegroundColor Magenta
+# Simple formatted output for the results
+Write-Host ""
+Write-Host "==================== Comparison Summary ====================" -ForegroundColor Magenta
 
-    if ($comparisonResults.Count -gt 0) {
-        foreach ($result in $comparisonResults) {
-            $lineFormatted = "Line: $($result.LineNumber)"
-            $fileFormatted = "File: $($result.File)"
-            $contentFormatted = "Content: $($result.Content)"
-            $lineFormatted = $lineFormatted.PadRight($boxWidth - 4) + "║"
-            $fileFormatted = $fileFormatted.PadRight($boxWidth - 4) + "║"
-            $contentFormatted = $contentFormatted.PadRight($boxWidth - 4) + "║"
+if ($comparisonResults.Count -gt 0) {
+    foreach ($result in $comparisonResults) {
+        $lineFormatted = "Line: $($result.LineNumber)"
+        $fileFormatted = "File: $($result.File)"
+        $contentFormatted = "Content: $($result.Content)"
 
-            Write-Host "║  $lineFormatted" -ForegroundColor Yellow
-            Write-Host "║  $fileFormatted" -ForegroundColor Cyan
-            Write-Host "║  $contentFormatted" -ForegroundColor Red
-            Write-Host "║"  (" " * ($boxWidth - 4))  "║" -ForegroundColor Magenta
-        }
-        Write-Host "╚════════════════════════════════════════════════╝" -ForegroundColor Magenta
-    } else {
-        Write-Host "║  No differences found                          ║" -ForegroundColor Green
-        Write-Host "╚════════════════════════════════════════════════╝" -ForegroundColor Magenta
+        Write-Host "------------------------------------------------------------" -ForegroundColor Magenta
+        Write-Host "$lineFormatted" -ForegroundColor Yellow
+        Write-Host "$fileFormatted" -ForegroundColor Cyan
+        Write-Host "$contentFormatted" -ForegroundColor Red
     }
+    Write-Host "------------------------------------------------------------" -ForegroundColor Magenta
+} else {
+    Write-Host "No differences found" -ForegroundColor Green
+}
+Write-Host "============================================================" -ForegroundColor Magenta
+
 }
 
 function Compare-Files {

@@ -109,7 +109,7 @@ function Invoke-KubeSnapIt {
         return
     }
 
-    Show-KubeSnapItBanner
+    # Show-KubeSnapItBanner
 
     # Check if kubectl is installed for actions that require it
     if (!(Get-Command "kubectl" -ErrorAction SilentlyContinue)) {
