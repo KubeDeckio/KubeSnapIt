@@ -50,17 +50,40 @@ function Read-YamlFile {
         [string]$FilePath
     )
 
-    # Import the YAML content as a PSCustomObject
-    $yamlContent = Get-Content $FilePath -Raw | ConvertFrom-Yaml
+    # Check if FilePath is provided
+    if (-not $FilePath) {
+        Write-Error "Error: No file path provided. Please specify the path to a YAML file."
+        return $null
+    }
 
-    # Extract the relevant information: kind, name, and namespace
-    $kind = $yamlContent.kind
-    $name = $yamlContent.metadata.name
+    # Check if the file exists
+    if (-not (Test-Path -Path $FilePath)) {
+        Write-Error "Error: File not found at path '$FilePath'. Please check the file path and try again."
+        return $null
+    }
+
+    # Try to read and parse the YAML file
+    try {
+        $yamlContent = Get-Content -Path $FilePath -Raw | ConvertFrom-Yaml
+    }
+    catch {
+        Write-Error "Error: Unable to read or parse the YAML file at '$FilePath'. Ensure the file is in correct YAML format."
+        return $null
+    }
+
+    # Ensure the required fields are available
+    if (-not $yamlContent.kind -or -not $yamlContent.metadata.name) {
+        Write-Error "Error: The YAML file at '$FilePath' is missing required fields ('kind' or 'metadata.name')."
+        return $null
+    }
+
+    # Set namespace to 'default' if not specified
     $namespace = if ($yamlContent.metadata.namespace) { $yamlContent.metadata.namespace } else { "default" }
 
+    # Return the extracted information as a PSCustomObject
     return [PSCustomObject]@{
-        Kind = $kind
-        Name = $name
+        Kind      = $yamlContent.kind
+        Name      = $yamlContent.metadata.name
         Namespace = $namespace
     }
 }
@@ -227,24 +250,43 @@ function Compare-Files {
         [string]$CompareFile        # The second file to compare against (optional)
     )
 
+    # Check if LocalFile exists
+    if (-not (Test-Path -Path $LocalFile)) {
+        Write-Error "Error: Local file not found at path '$LocalFile'. Please check the file path and try again."
+        return
+    }
+
+    # Parse the YAML file to extract the kind, name, and namespace
+    $resourceInfo = Read-YamlFile -FilePath $LocalFile
+    if (-not $resourceInfo) {
+        Write-Error "Error: Could not extract resource information from '$LocalFile'. Please ensure the file is in a valid YAML format."
+        return
+    }
+
     # If CompareFile is not provided, fetch the cluster snapshot for comparison
     if (-not $CompareFile) {
-        # Parse the YAML file to extract the kind, name, and namespace
-        $resourceInfo = Read-YamlFile -FilePath $LocalFile
-
-        if (-not $resourceInfo) {
-            Write-Host "Error: Could not extract resource information from the file." -ForegroundColor Red
+        try {
+            # Attempt to fetch the cluster snapshot
+            $clusterSnapshot = Get-KubectlSnapshot -Namespace $resourceInfo.Namespace -ResourceKind $resourceInfo.Kind -ResourceName $resourceInfo.Name
+        }
+        catch {
+            Write-Error "Error: Failed to fetch the cluster snapshot. Ensure that 'kubectl' is configured correctly and accessible."
             return
         }
 
-        # Fetch the cluster snapshot and store it in a temporary file
-        $clusterSnapshot = Get-KubectlSnapshot -Namespace $resourceInfo.Namespace -ResourceKind $resourceInfo.Kind -ResourceName $resourceInfo.Name
-        
-        if ($clusterSnapshot) {
+        # Check if the snapshot retrieval was successful
+        if (-not $clusterSnapshot) {
+            Write-Error "Error: No data retrieved from the cluster snapshot. Verify resource details (namespace, kind, name) and cluster access."
+            return
+        }
+
+        # Attempt to write the cluster snapshot to a temporary file
+        try {
             $CompareFile = "$env:TEMP\$($resourceInfo.Name)-cluster-snapshot.yaml"
             $clusterSnapshot | Out-File -FilePath $CompareFile -Force
-        } else {
-            Write-Host "Error: Could not fetch the cluster snapshot." -ForegroundColor Red
+        }
+        catch {
+            Write-Error "Error: Unable to write the cluster snapshot to temporary file '$CompareFile'. Check permissions and available space."
             return
         }
     }

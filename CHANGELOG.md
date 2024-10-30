@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.6] - 2024-10-30
+
+### Added
+- **Enhanced Error Handling**: Improved error handling in `Read-YamlFile` and `Compare-Files` functions.
+    - `Read-YamlFile` now checks for:
+        - Missing file paths, displaying an error if the path is invalid or the file is not found.
+        - YAML format validation, ensuring required fields (`kind`, `metadata.name`) are present.
+    - `Compare-Files` function enhancements include:
+        - Validation for the presence of `$LocalFile` and error messaging if the file is missing or unreadable.
+        - Cluster snapshot retrieval wrapped in error handling, with feedback for failed `kubectl` access or invalid resource information.
+        - Temporary file write protection, ensuring successful snapshot output to a specified location and clear messaging if issues occur.
+- **UI Switch Update**: Modified the `-UI` switch to display the `Show-KubeSnapItBanner` banner when running the script in CLI mode without blocking subsequent operations. This ensures that banner display and further command execution can occur seamlessly in CLI environments.
+
+### Fixed
+- **Comparison Execution**: Resolved issues where `Compare-Files` would not complete if the `$CompareFile` was not explicitly provided, adding automatic snapshot creation when needed and appropriate validation checks.
+
 ## [0.0.5] - 2024-10-22
 
 ### Fixed
