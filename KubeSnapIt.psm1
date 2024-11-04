@@ -74,6 +74,7 @@ function Invoke-KubeSnapIt {
         [string]$InputPath = "", 
         [string]$ComparePath = "",
         [switch]$AllNamespaces,
+        [switch]$AllNonSystemNamespaces,
         [string]$Labels = "",
         [string]$Objects = "",
         [switch]$DryRun,
@@ -82,6 +83,7 @@ function Invoke-KubeSnapIt {
         [switch]$CompareSnapshots,      # Switch for comparing two snapshots
         [switch]$Force,
         [switch]$UI,
+        [switch]$BackupHelm,
         [Alias("h")] [switch]$Help
     )
     # END PARAM BLOCK
@@ -95,13 +97,15 @@ function Invoke-KubeSnapIt {
         Write-Host "  -InputPath           Path to restore snapshots from or the first snapshot for comparison."
         Write-Host "  -ComparePath         Path to the second snapshot for comparison (optional)."
         Write-Host "  -AllNamespaces       Capture all namespaces. If this is provided, -Namespace will be ignored."
+        Write-Host "  -AllNonSystemNamespaces Capture all non-system namespaces. If this is provided, -Namespace and -AllNamespaces will be ignored."
         Write-Host "  -Labels              Specify labels to filter Kubernetes objects (e.g., app=nginx)."
         Write-Host "  -Objects             Comma-separated list of specific objects in the kind/name format (e.g., pod/my-pod, deployment/my-deployment)."
         Write-Host "  -DryRun              Simulate taking or restoring the snapshot without saving or applying files."
         Write-Host "  -Restore             Restore snapshots from the specified directory or file."
         Write-Host "  -CompareWithCluster  Compare a snapshot with the current cluster state."
-        Write-Host "  -CompareSnapshots     Compare two snapshots."
+        Write-Host "  -CompareSnapshots    Compare two snapshots."
         Write-Host "  -Force               Force the action without prompting for confirmation."
+        Write-Host "  -BackupHelm          Backup Helm releases and their values."
         Write-Host "  -Help                Display this help message."
         return
     }
@@ -187,7 +191,7 @@ function Invoke-KubeSnapIt {
         }
 
         # Handle Snapshot operation
-        { $Namespace -or $AllNamespaces } {
+        { $Namespace -or $AllNamespaces -or $AllNonSystemNamespaces } {
             # Set output path and create directory if it doesn't exist
             if (-not (Test-Path -Path $OutputPath)) {
                 New-Item -Path $OutputPath -ItemType Directory -Force | Out-Null
@@ -201,16 +205,32 @@ function Invoke-KubeSnapIt {
 
             # Call the snapshot function
             try {
-                Save-KubeSnapshot -Namespace $Namespace -AllNamespaces:$AllNamespaces -Labels $Labels -Objects $Objects -OutputPath $OutputPath -DryRun:$DryRun -Verbose:$Verbose
+                Save-KubeSnapshot -Namespace $Namespace -AllNamespaces:$AllNamespaces -AllNonSystemNamespaces:$AllNonSystemNamespaces -Labels $Labels -Objects $Objects -OutputPath $OutputPath -DryRun:$DryRun -Verbose:$Verbose
             } catch {
                 Write-Host "Error occurred during the snapshot process: $_" -ForegroundColor Red
             }
             return
         }
 
+        # Handle Helm backup operation
+        { $BackupHelm } {
+            Write-Verbose "Starting Helm backup process..."
+            if ($DryRun) {
+                Write-Host "Dry run enabled. No files will be saved." -ForegroundColor Yellow
+            }
+
+            # Call the Helm backup function
+            try {
+                Save-HelmBackup -Namespace $Namespace -AllNamespaces:$AllNamespaces -AllNonSystemNamespaces:$AllNonSystemNamespaces -OutputPath $OutputPath -DryRun:$DryRun -Verbose:$Verbose
+            } catch {
+                Write-Host "Error occurred during the Helm backup process: $_" -ForegroundColor Red
+            }
+            return
+        }
+
         # If none of the operations match, display an error
         default {
-            Write-Host "Error: You must specify either -Restore, -CompareWithCluster, or -CompareSnapshots with a valid operation." -ForegroundColor Red
+            Write-Host "Error: You must specify either -Restore, -CompareWithCluster, -CompareSnapshots, or -BackupHelm with a valid operation." -ForegroundColor Red
             return
         }
     }
