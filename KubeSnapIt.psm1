@@ -51,10 +51,12 @@ if (-not $foundScripts -and (Test-Path -Path $krewStorageDir)) {
                 . $script.FullName  # Call the script
                 $foundScripts = $true
             }
-        } else {
+        }
+        else {
             Write-Verbose "No Private directory found for the latest version: $($latestVersionDir.Name)."
         }
-    } else {
+    }
+    else {
         Write-Verbose "No version directories found in $krewStorageDir."
     }
 }
@@ -79,8 +81,8 @@ function Invoke-KubeSnapIt {
         [string]$Objects = "",
         [switch]$DryRun,
         [switch]$Restore,
-        [switch]$CompareWithCluster,  # Switch for comparing with the cluster
-        [switch]$CompareSnapshots,      # Switch for comparing two snapshots
+        [switch]$CompareWithCluster,
+        [switch]$CompareSnapshots,
         [switch]$Force,
         [switch]$UI,
         [switch]$SnapshotHelm,
@@ -105,7 +107,7 @@ function Invoke-KubeSnapIt {
         Write-Host "  -CompareWithCluster  Compare a snapshot with the current cluster state."
         Write-Host "  -CompareSnapshots    Compare two snapshots."
         Write-Host "  -Force               Force the action without prompting for confirmation."
-        Write-Host "  -SnapshotHelm          Backup Helm releases and their values."
+        Write-Host "  -SnapshotHelm        Backup Helm releases and their values."
         Write-Host "  -Help                Display this help message."
         return
     }
@@ -139,7 +141,8 @@ function Invoke-KubeSnapIt {
         Write-Host ""
         Write-Host "=========================================" -ForegroundColor Cyan
         Write-Host ""
-    } else {
+    }
+    else {
         Write-Host "You are not connected to any Kubernetes cluster." -ForegroundColor Red
         Write-Host "Please configure a Kubernetes cluster to connect to." -ForegroundColor Red
         Write-Host "Instructions to set up a cluster can be found here: https://kubernetes.io/docs/tasks/access-application-cluster/configure-access-multiple-clusters/" -ForegroundColor Yellow
@@ -149,88 +152,75 @@ function Invoke-KubeSnapIt {
 
     # Determine the operation type using switch
     switch ($true) {
-        # Handle Restore operation
         { $Restore } {
             if (-not $InputPath) {
-                Write-Host "Error: You must specify an input path for the restore operation." -ForegroundColor Red
+                Write-Host "Error: Input path required for restore." -ForegroundColor Red
                 return
             }
-            # Call the Restore-KubeSnapshot function
             Restore-KubeSnapshot -InputPath $InputPath -Force $Force -Verbose:$Verbose
             return
         }
 
-        # Handle Compare with Cluster operation
         { $CompareWithCluster } {
             if (-not $InputPath) {
-                Write-Host "Error: You must specify a snapshot path for comparison." -ForegroundColor Red
+                Write-Host "Error: Snapshot path required for comparison." -ForegroundColor Red
                 return
             }
-
-            Write-Verbose "Comparing snapshot with current cluster state: $InputPath"
             Compare-Files -LocalFile $InputPath -Verbose:$Verbose
             return
         }
 
-        # Handle Compare Snapshots operation
         { $CompareSnapshots } {
-            if (-not $InputPath) {
-                Write-Host "Error: You must specify a snapshot path for comparison." -ForegroundColor Red
+            if (-not $InputPath -or -not $ComparePath) {
+                Write-Host "Error: Both -InputPath and -ComparePath required for snapshot comparison." -ForegroundColor Red
                 return
             }
-
-            # Ensure ComparePath is provided for snapshot comparison
-            if (-not [string]::IsNullOrWhiteSpace($ComparePath)) {
-                Write-Verbose "Comparing two snapshots: $InputPath and $ComparePath"
-                Compare-Files -LocalFile $InputPath -CompareFile $ComparePath -Verbose:$Verbose
-                return
-            } else {
-                Write-Host "Error: You must specify a second snapshot for comparison (-ComparePath)." -ForegroundColor Red
-                return
-            }
+            Compare-Files -LocalFile $InputPath -CompareFile $ComparePath -Verbose:$Verbose
+            return
         }
 
-        # Handle Snapshot operation
-        { $Namespace -or $AllNamespaces -or $AllNonSystemNamespaces } {
-            # Set output path and create directory if it doesn't exist
+        { $SnapshotHelm } {
+            if (-not ($Namespace -or $AllNamespaces -or $AllNonSystemNamespaces)) {
+                Write-Host "Error: -Namespace, -AllNamespaces, or -AllNonSystemNamespaces is required with -SnapshotHelm." -ForegroundColor Red
+                return
+            }
             if (-not (Test-Path -Path $OutputPath)) {
                 New-Item -Path $OutputPath -ItemType Directory -Force | Out-Null
                 Write-Verbose "Output directory created: $OutputPath"
             }
+            Write-Verbose "Starting Helm backup..."
+            if ($DryRun) { Write-Host "Dry run enabled. No files will be saved." -ForegroundColor Yellow }
 
-            Write-Verbose "Starting snapshot process..."
-            if ($DryRun) {
-                Write-Host "Dry run enabled. No files will be saved." -ForegroundColor Yellow
-            }
-
-            # Call the snapshot function
-            try {
-                Save-KubeSnapshot -Namespace $Namespace -AllNamespaces:$AllNamespaces -AllNonSystemNamespaces:$AllNonSystemNamespaces -Labels $Labels -Objects $Objects -OutputPath $OutputPath -DryRun:$DryRun -Verbose:$Verbose
-            } catch {
-                Write-Host "Error occurred during the snapshot process: $_" -ForegroundColor Red
-            }
-            return
-        }
-
-        # Handle Helm backup operation
-        { $SnapshotHelm } {
-            Write-Verbose "Starting Helm backup process..."
-            if ($DryRun) {
-                Write-Host "Dry run enabled. No files will be saved." -ForegroundColor Yellow
-            }
-
-            # Call the Helm backup function
+            # Helm backup function call
             try {
                 Save-HelmBackup -Namespace $Namespace -AllNamespaces:$AllNamespaces -AllNonSystemNamespaces:$AllNonSystemNamespaces -OutputPath $OutputPath -DryRun:$DryRun -Verbose:$Verbose
-            } catch {
-                Write-Host "Error occurred during the Helm backup process: $_" -ForegroundColor Red
+            }
+            catch {
+                Write-Host "Error during Helm backup: $_" -ForegroundColor Red
             }
             return
         }
 
-        # If none of the operations match, display an error
+        { $Namespace -or $AllNamespaces -or $AllNonSystemNamespaces } {
+            if (-not (Test-Path -Path $OutputPath)) {
+                New-Item -Path $OutputPath -ItemType Directory -Force | Out-Null
+                Write-Verbose "Output directory created: $OutputPath"
+            }
+            Write-Verbose "Starting snapshot..."
+            if ($DryRun) { Write-Host "Dry run enabled. No files will be saved." -ForegroundColor Yellow }
+
+            # Snapshot function call
+            try {
+                Save-KubeSnapshot -Namespace $Namespace -AllNamespaces:$AllNamespaces -AllNonSystemNamespaces:$AllNonSystemNamespaces -Labels $Labels -Objects $Objects -OutputPath $OutputPath -DryRun:$DryRun -Verbose:$Verbose
+            }
+            catch {
+                Write-Host "Error during snapshot: $_" -ForegroundColor Red
+            }
+            return
+        }
+
         default {
-            Write-Host "Error: You must specify either -Restore, -CompareWithCluster, -CompareSnapshots, or -SnapshotHelm with a valid operation." -ForegroundColor Red
+            Write-Host "Error: Specify -Restore, -CompareWithCluster, -CompareSnapshots, or -SnapshotHelm with necessary parameters." -ForegroundColor Red
             return
         }
     }

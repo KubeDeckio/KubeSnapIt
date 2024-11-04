@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.8] - 2024-11-01
+
+### Fixed:
+- Resolved an issue where `SnapshotHelm` could be triggered without specifying a namespace-related option. Now requires either `-Namespace`, `-AllNamespaces`, or `-AllNonSystemNamespaces` when `SnapshotHelm` is used.
+- Improved parameter validation to prevent execution without necessary inputs, reducing potential errors in Helm snapshot and comparison functions.
+
 ## [0.0.7] - 2024-11-01
 
 ### Added

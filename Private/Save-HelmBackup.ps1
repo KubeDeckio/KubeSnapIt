@@ -92,7 +92,7 @@ function Save-HelmBackup {
                     Write-Host "Dry run: Found Helm release '$releaseName' in namespace '$releaseNamespace'."
                 } else {
                     # Fetch values for each release
-                    $helmGetValuesCmd = "get values $releaseName $namespaceOption"
+                    $helmGetValuesCmd = "get values $releaseName $namespaceOption -o yaml"
                     Write-Verbose "Running command: helm $helmGetValuesCmd"
                     $valuesOutput = Invoke-HelmCommand $helmGetValuesCmd
 
