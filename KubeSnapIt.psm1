@@ -3,9 +3,9 @@
 # MARKER: NEW PARAM BLOCK
 
 # Dot Source all functions in all ps1 files located in this module
-# Define the path to the local Private directory and Krew storage directory for KubeTidy
+# Define the path to the local Private directory and Krew storage directory for KubeSnapIt
 $localPrivateDir = "$PSScriptRoot/Private"  # Local Private directory
-$krewStorageDir = "$HOME/.krew/store/kubetidy"  # Krew storage directory
+$krewStorageDir = "$HOME/.krew/store/KubeSnapIt"  # Krew storage directory
 $foundScripts = $false  # Flag to track if any scripts were found and executed
 
 # Check if the local Private directory exists and source scripts if available
@@ -83,7 +83,7 @@ function Invoke-KubeSnapIt {
         [switch]$CompareSnapshots,      # Switch for comparing two snapshots
         [switch]$Force,
         [switch]$UI,
-        [switch]$BackupHelm,
+        [switch]$SnapshotHelm,
         [Alias("h")] [switch]$Help
     )
     # END PARAM BLOCK
@@ -105,7 +105,7 @@ function Invoke-KubeSnapIt {
         Write-Host "  -CompareWithCluster  Compare a snapshot with the current cluster state."
         Write-Host "  -CompareSnapshots    Compare two snapshots."
         Write-Host "  -Force               Force the action without prompting for confirmation."
-        Write-Host "  -BackupHelm          Backup Helm releases and their values."
+        Write-Host "  -SnapshotHelm          Backup Helm releases and their values."
         Write-Host "  -Help                Display this help message."
         return
     }
@@ -213,7 +213,7 @@ function Invoke-KubeSnapIt {
         }
 
         # Handle Helm backup operation
-        { $BackupHelm } {
+        { $SnapshotHelm } {
             Write-Verbose "Starting Helm backup process..."
             if ($DryRun) {
                 Write-Host "Dry run enabled. No files will be saved." -ForegroundColor Yellow
@@ -230,7 +230,7 @@ function Invoke-KubeSnapIt {
 
         # If none of the operations match, display an error
         default {
-            Write-Host "Error: You must specify either -Restore, -CompareWithCluster, -CompareSnapshots, or -BackupHelm with a valid operation." -ForegroundColor Red
+            Write-Host "Error: You must specify either -Restore, -CompareWithCluster, -CompareSnapshots, or -SnapshotHelm with a valid operation." -ForegroundColor Red
             return
         }
     }

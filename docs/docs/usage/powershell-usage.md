@@ -18,6 +18,7 @@ Ensure you are connected to your Kubernetes cluster before using KubeSnapIt. You
 |----------------------|-----------------------------------------------------------------------------|
 | `-Namespace`         | Specifies the namespace to snapshot or restore.                             |
 | `-AllNamespaces`     | Captures or restores all namespaces. Overrides the `-Namespace` parameter.   |
+| `-AllNonSystemNamespaces`| Capture all non-system namespaces. If this is provided, `-Namespace` and `-AllNamespaces` will be ignored. |
 | `-OutputPath`        | Path to save the snapshot files.                                             |
 | `-InputPath`         | Path to restore snapshots from or for comparison.                           |
 | `-ComparePath`       | Path to the second snapshot for comparison.                                 |
@@ -29,9 +30,10 @@ Ensure you are connected to your Kubernetes cluster before using KubeSnapIt. You
 | `-CompareWithCluster`| Compares a snapshot with the current cluster state.                         |
 | `-Force`             | Bypasses confirmation prompts when restoring snapshots.                     |
 | `-Verbose`           | Shows detailed output during the snapshot, restore, or comparison process.   |
+| `-SnapshotHelm`        | Backup Helm releases and their values.                                        |
 | `-Help`              | Displays the help information for using `KubeSnapIt`.                       |
 
-## Resource Snapshotting
+## Taking a Snapshot
 
 To capture a snapshot of Kubernetes resources in a specific namespace:
 
@@ -45,21 +47,47 @@ To capture snapshots of all resources across all namespaces:
 Invoke-KubeSnapIt -AllNamespaces -OutputPath "./snapshots"
 ```
 
-## Resource Diffing
+To capture snapshots of all resources across all non system namespaces:
+
+```powershell
+Invoke-KubeSnapIt -AllNonSystemNamespaces -OutputPath "./snapshots"
+```
+
+## Snapshotting Helm Releases
+
+To capture snapshots of Helm releases in a specific namespace
+
+```powershell
+Invoke-KubeSnapIt -SnapshotHelm -Namespace "my-namespace" -OutputPath "./helm-backups"
+```
+
+To capture snapshots of Helm releases in all namespaces
+
+```powershell
+Invoke-KubeSnapIt -SnapshotHelm -AllNamespaces -OutputPath "./helm-backups"
+```
+
+To capture snapshots of Helm releases in all non-system namespaces
+
+```powershell
+Invoke-KubeSnapIt -SnapshotHelm -AllNonSystemNamespaces -OutputPath "./helm-backups"
+```
+
+## Comparing Snapshots
 
 To compare a local snapshot against the live cluster state:
 
 ```powershell
-Invoke-KubeSnapIt -LocalFile "./snapshots/your_snapshot.yaml"
+Invoke-KubeSnapIt -CompareWithCluster -InputPath "./snapshots"
 ```
 
 To compare two local snapshots:
 
 ```powershell
-Compare-Files -LocalFile "./snapshots/your_snapshot1.yaml" -CompareFile "./snapshots/your_snapshot2.yaml"
+Invoke-KubeSnapIt -CompareSnapshots -InputPath "./snapshots/snapshot1" -ComparePath "./snapshots/snapshot2"
 ```
 
-## Resource Restoration
+## Restoring a Snapshot
 
 To restore a Kubernetes resource from a snapshot, use the following command. By default, the script will ask for confirmation before proceeding with the restore:
 

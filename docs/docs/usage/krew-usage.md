@@ -18,6 +18,7 @@ Ensure you are connected to your Kubernetes cluster before using KubeSnapIt. You
 |----------------------|-----------------------------------------------------------------------------|
 | `-Namespace`         | Specifies the namespace to snapshot or restore.                             |
 | `-AllNamespaces`     | Captures or restores all namespaces. Overrides the `-Namespace` parameter.   |
+| `-AllNonSystemNamespaces`| Capture all non-system namespaces. If this is provided, `-Namespace` and `-AllNamespaces` will be ignored. |
 | `-OutputPath`        | Path to save the snapshot files.                                             |
 | `-InputPath`         | Path to restore snapshots from or for comparison.                           |
 | `-ComparePath`       | Path to the second snapshot for comparison.                                 |
@@ -29,9 +30,10 @@ Ensure you are connected to your Kubernetes cluster before using KubeSnapIt. You
 | `-CompareWithCluster`| Compares a snapshot with the current cluster state.                         |
 | `-Force`             | Bypasses confirmation prompts when restoring snapshots.                     |
 | `-Verbose`           | Shows detailed output during the snapshot, restore, or comparison process.   |
+| `-SnapshotHelm`        | Backup Helm releases and their values.                                        |
 | `-Help`              | Displays the help information for using `KubeSnapIt`.                       |
 
-## Resource Snapshotting
+## Taking a Snapshot
 
 To capture a snapshot of Kubernetes resources in a specific namespace:
 
@@ -45,18 +47,56 @@ To capture snapshots of all resources across all namespaces:
 kubectl KubeSnapIt --all-namespaces --output-path "./snapshots"
 ```
 
-## Resource Diffing
+To capture snapshots of all non-system namespaces
+
+```bash
+kubectl kubesnapit -allnonsystemnamespaces -outputpath ./snapshots
+```
+
+To capture snapshots with specific labels
+
+```bash
+kubectl kubesnapit -namespace my-namespace -labels app=nginx -outputpath ./snapshots
+```
+
+To capture snapshots of specific objects
+
+```bash
+kubectl kubesnapit -namespace my-namespace -objects pod/my-pod,deployment/my-deployment -outputpath ./snapshots
+```
+
+## Snapshotting Helm Releases
+
+To capture snapshots of Helm releases in a specific namespace
+
+```bash
+kubectl kubesnapit -backuphelm -namespace my-namespace -outputpath ./helm-backups
+```
+
+To capture snapshots of Helm releases in all namespaces
+
+```bash
+kubectl kubesnapit -backuphelm -allnamespaces -outputpath ./helm-backups
+```
+
+To capture snapshots of Helm releases in all non-system namespaces
+
+```bash
+kubectl kubesnapit -backuphelm -allnonsystemnamespaces -outputpath ./helm-backups
+```
+
+## Comparing Snapshots
 
 To compare a local snapshot against the live cluster state:
 
 ```bash
-kubectl KubeSnapIt diff --local-file "./snapshots/your_snapshot.yaml"
+kubectl kubesnapit -comparewithcluster -inputpath ./snapshots
 ```
 
 To compare two local snapshots:
 
 ```bash
-kubectl KubeSnapIt diff --local-file "./snapshots/your_snapshot1.yaml" --compare-file "./snapshots/your_snapshot2.yaml"
+kubectl kubesnapit -comparesnapshots -inputpath ./snapshots/snapshot1 -comparepath ./snapshots/snapshot2
 ```
 
 ## Resource Restoration
