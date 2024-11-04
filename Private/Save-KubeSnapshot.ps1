@@ -217,6 +217,7 @@ function Save-KubeSnapshot {
                     Process-Namespace -Namespace $ns
                 }
             } elseif ($Namespace) {
+                write-host "Processing namespace: $Namespace"
                 Process-Namespace -Namespace $Namespace
             }
 
