@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.7] - 2024-11-01
+
+### Added
+- **AllNonSystemNamespaces Parameter**: Introduced the `-AllNonSystemNamespaces` parameter to the `Invoke-KubeSnapIt` and `Save-KubeSnapshot` functions. This allows users to capture snapshots from all non-system namespaces, excluding `kube-system`, `kube-public`, `kube-node-lease`, and `default`.
+- **Helm Chart Snapshot**: Added functionality to backup Helm releases and their values using the `-SnapshotHelm` parameter. This includes:
+  - Fetching Helm release values.
+  - Fetching Helm release manifests.
+  - Fetching Helm release history.
+  - Saving the fetched data to specified output paths.
+
+### Fixed
+- **Namespace Processing**: Ensured that the `Process-Namespace` function correctly handles single namespace strings and iterates over multiple namespaces when `-AllNonSystemNamespaces` is specified.
+
 ## [0.0.6] - 2024-10-30
 
 ### Added
