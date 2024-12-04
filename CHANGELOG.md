@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.10] - 2024-12-04
+
+### Added:
+- **`-SnapshotHelmUsedValues`**: Introduced a new switch to capture only the used values (default and user-provided) for Helm releases.
+- **Combined Helm Snapshots**: Added support for combining `-SnapshotHelm` and `-SnapshotHelmUsedValues` to capture both full Helm snapshots and used values in a single command.
+- **Documentation Enhancements**: Expanded PowerShell and Krew plugin usage documentation to reflect the new Helm-related functionality, including examples for individual and combined switches.
+
+### Fixed:
+- **Non-System Namespace Handling**: Resolved issues with `AllNonSystemNamespaces` when processing Helm snapshots, ensuring proper filtering of system namespaces.
+- **Error Handling in Helm Commands**: Improved error handling for `helm` commands to provide clearer feedback when commands fail or outputs are invalid.
+
+### Changed:
+- **Output File Naming**: Standardized file naming conventions for Helm snapshots to include timestamps and clearly distinguish between full snapshots and used values.
+- **Verbose Mode Improvements**: Enhanced verbosity messages to provide better visibility into the snapshotting process, particularly for Helm-related operations.
+
 ## [0.0.9] - 2024-11-04
 
 ### Fixed:
