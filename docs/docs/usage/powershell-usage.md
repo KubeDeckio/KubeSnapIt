@@ -34,6 +34,8 @@ Ensure you are connected to your Kubernetes cluster before using KubeSnapIt. You
 | `-SnapshotHelmUsedValues`  | Backup only the used values (default and user-provided) for Helm releases.   |
 | `-Help`                    | Displays the help information for using `KubeSnapIt`.                       |
 
+---
+
 ## Taking a Snapshot
 
 To capture a snapshot of Kubernetes resources in a specific namespace:
@@ -53,6 +55,8 @@ To capture snapshots of all resources across all non system namespaces:
 ```powershell
 Invoke-KubeSnapIt -AllNonSystemNamespaces -OutputPath "./snapshots"
 ```
+
+---
 
 ## Snapshotting Helm Releases
 
@@ -80,6 +84,8 @@ To capture snapshots of Helm releases in all non-system namespaces:
 Invoke-KubeSnapIt -SnapshotHelm -AllNonSystemNamespaces -OutputPath "./helm-backups"
 ```
 
+---
+
 ### Capture Only Helm Used Values
 The `-SnapshotHelmUsedValues` switch captures only the **used values** for Helm releases. This includes all values (default and user-provided).
 
@@ -100,6 +106,8 @@ To capture only used values for Helm releases in all non-system namespaces:
 ```powershell
 Invoke-KubeSnapIt -SnapshotHelmUsedValues -AllNonSystemNamespaces -OutputPath "./helm-backups"
 ```
+
+---
 
 ### Combining Full Snapshots and Used Values
 You can combine the `-SnapshotHelm` and `-SnapshotHelmUsedValues` switches to capture a full Helm snapshot and used values simultaneously.
