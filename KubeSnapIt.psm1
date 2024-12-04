@@ -86,6 +86,7 @@ function Invoke-KubeSnapIt {
         [switch]$Force,
         [switch]$UI,
         [switch]$SnapshotHelm,
+        [switch]$SnapshotHelmUsedValues,
         [Alias("h")] [switch]$Help
     )
     # END PARAM BLOCK
@@ -108,6 +109,7 @@ function Invoke-KubeSnapIt {
         Write-Host "  -CompareSnapshots    Compare two snapshots."
         Write-Host "  -Force               Force the action without prompting for confirmation."
         Write-Host "  -SnapshotHelm        Backup Helm releases and their values."
+        Write-Host "  -SnapshotHelmUsedValues  Backup Helm release values."
         Write-Host "  -Help                Display this help message."
         return
     }
@@ -193,7 +195,66 @@ function Invoke-KubeSnapIt {
 
             # Helm backup function call
             try {
-                Save-HelmBackup -Namespace $Namespace -AllNamespaces:$AllNamespaces -AllNonSystemNamespaces:$AllNonSystemNamespaces -OutputPath $OutputPath -DryRun:$DryRun -Verbose:$Verbose
+                Save-HelmBackup -Namespace $Namespace -AllNamespaces:$AllNamespaces -AllNonSystemNamespaces:$AllNonSystemNamespaces -OutputPath $OutputPath -DryRun:$DryRun -Verbose:$Verbose -SnapshotHelm
+            }
+            catch {
+                Write-Host "Error during Helm backup: $_" -ForegroundColor Red
+            }
+            return
+        }
+
+        # Only Helm used values snapshot
+        { $SnapshotHelmUsedValues } {
+            if (-not ($Namespace -or $AllNamespaces -or $AllNonSystemNamespaces)) {
+                Write-Host "Error: -Namespace, -AllNamespaces, or -AllNonSystemNamespaces is required with -SnapshotHelmUsedValues." -ForegroundColor Red
+                return
+            }
+            if (-not (Test-Path -Path $OutputPath)) {
+                New-Item -Path $OutputPath -ItemType Directory -Force | Out-Null
+                Write-Verbose "Output directory created: $OutputPath"
+            }
+            Write-Verbose "Starting Helm used values backup..."
+            if ($DryRun) { Write-Host "Dry run enabled. No files will be saved." -ForegroundColor Yellow }
+
+            try {
+                Save-HelmBackup `
+                    -Namespace $Namespace `
+                    -AllNamespaces:$AllNamespaces `
+                    -AllNonSystemNamespaces:$AllNonSystemNamespaces `
+                    -OutputPath $OutputPath `
+                    -DryRun:$DryRun `
+                    -Verbose:$Verbose `
+                    -SnapshotHelmUsedValues
+            }
+            catch {
+                Write-Host "Error during Helm used values backup: $_" -ForegroundColor Red
+            }
+            return
+        }
+
+        # Only Helm used values snapshot
+        { $SnapshotHelmUsedValues -and $SnapshotHelm } {
+            if (-not ($Namespace -or $AllNamespaces -or $AllNonSystemNamespaces)) {
+                Write-Host "Error: -Namespace, -AllNamespaces, or -AllNonSystemNamespaces is required with -SnapshotHelm and -SnapshotHelmUsedValues." -ForegroundColor Red
+                return
+            }
+            if (-not (Test-Path -Path $OutputPath)) {
+                New-Item -Path $OutputPath -ItemType Directory -Force | Out-Null
+                Write-Verbose "Output directory created: $OutputPath"
+            }
+            Write-Verbose "Starting Helm backup..."
+            if ($DryRun) { Write-Host "Dry run enabled. No files will be saved." -ForegroundColor Yellow }
+        
+            try {
+                Save-HelmBackup `
+                    -Namespace $Namespace `
+                    -AllNamespaces:$AllNamespaces `
+                    -AllNonSystemNamespaces:$AllNonSystemNamespaces `
+                    -OutputPath $OutputPath `
+                    -DryRun:$DryRun `
+                    -Verbose:$Verbose `
+                    -SnapshotHelm `
+                    -SnapshotHelmUsedValues
             }
             catch {
                 Write-Host "Error during Helm backup: $_" -ForegroundColor Red

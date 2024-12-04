@@ -14,24 +14,27 @@ Ensure you are connected to your Kubernetes cluster before using KubeSnapIt. You
 
 ## Parameters
 
-| Parameter            | Description                                                                 |
-|----------------------|-----------------------------------------------------------------------------|
-| `-Namespace`         | Specifies the namespace to snapshot or restore.                             |
-| `-AllNamespaces`     | Captures or restores all namespaces. Overrides the `-Namespace` parameter.   |
-| `-AllNonSystemNamespaces`| Capture all non-system namespaces. If this is provided, `-Namespace` and `-AllNamespaces` will be ignored. |
-| `-OutputPath`        | Path to save the snapshot files.                                             |
-| `-InputPath`         | Path to restore snapshots from or for comparison.                           |
-| `-ComparePath`       | Path to the second snapshot for comparison.                                 |
-| `-Labels`            | Filters Kubernetes objects based on specified labels (e.g., `app=nginx`).   |
-| `-Objects`           | Comma-separated list of specific objects in the `kind/name` format.          |
-| `-DryRun`            | Simulates snapshotting or restoring without making any actual changes.       |
-| `-Restore`           | Restores resources from the specified snapshot path.                        |
-| `-Compare`           | Compares two snapshots or a snapshot with the current cluster state.         |
-| `-CompareWithCluster`| Compares a snapshot with the current cluster state.                         |
-| `-Force`             | Bypasses confirmation prompts when restoring snapshots.                     |
-| `-Verbose`           | Shows detailed output during the snapshot, restore, or comparison process.   |
-| `-SnapshotHelm`        | Backup Helm releases and their values.                                        |
-| `-Help`              | Displays the help information for using `KubeSnapIt`.                       |
+| Parameter                  | Description                                                                 |
+|----------------------------|-----------------------------------------------------------------------------|
+| `-Namespace`               | Specifies the namespace to snapshot or restore.                             |
+| `-AllNamespaces`           | Captures or restores all namespaces. Overrides the `-Namespace` parameter.   |
+| `-AllNonSystemNamespaces`  | Capture all non-system namespaces. If this is provided, `-Namespace` and `-AllNamespaces` will be ignored. |
+| `-OutputPath`              | Path to save the snapshot files.                                             |
+| `-InputPath`               | Path to restore snapshots from or for comparison.                           |
+| `-ComparePath`             | Path to the second snapshot for comparison.                                 |
+| `-Labels`                  | Filters Kubernetes objects based on specified labels (e.g., `app=nginx`).   |
+| `-Objects`                 | Comma-separated list of specific objects in the `kind/name` format.          |
+| `-DryRun`                  | Simulates snapshotting or restoring without making any actual changes.       |
+| `-Restore`                 | Restores resources from the specified snapshot path.                        |
+| `-Compare`                 | Compares two snapshots or a snapshot with the current cluster state.         |
+| `-CompareWithCluster`      | Compares a snapshot with the current cluster state.                         |
+| `-Force`                   | Bypasses confirmation prompts when restoring snapshots.                     |
+| `-Verbose`                 | Shows detailed output during the snapshot, restore, or comparison process.   |
+| `-SnapshotHelm`            | Backup Helm releases and their values, manifests, and history.              |
+| `-SnapshotHelmUsedValues`  | Backup only the used values (default and user-provided) for Helm releases.   |
+| `-Help`                    | Displays the help information for using `KubeSnapIt`.                       |
+
+---
 
 ## Taking a Snapshot
 
@@ -53,25 +56,81 @@ To capture snapshots of all resources across all non system namespaces:
 Invoke-KubeSnapIt -AllNonSystemNamespaces -OutputPath "./snapshots"
 ```
 
+---
+
 ## Snapshotting Helm Releases
 
-To capture snapshots of Helm releases in a specific namespace
+### Capture Full Helm Snapshots
+A full Helm snapshot includes:
+- Helm release values
+- Helm release manifests
+- Helm release history
+
+Capture snapshots of Helm releases in a specific namespace:
 
 ```powershell
 Invoke-KubeSnapIt -SnapshotHelm -Namespace "my-namespace" -OutputPath "./helm-backups"
 ```
 
-To capture snapshots of Helm releases in all namespaces
+To capture snapshots of Helm releases in all namespaces:
 
 ```powershell
 Invoke-KubeSnapIt -SnapshotHelm -AllNamespaces -OutputPath "./helm-backups"
 ```
 
-To capture snapshots of Helm releases in all non-system namespaces
+To capture snapshots of Helm releases in all non-system namespaces:
 
 ```powershell
 Invoke-KubeSnapIt -SnapshotHelm -AllNonSystemNamespaces -OutputPath "./helm-backups"
 ```
+
+---
+
+### Capture Only Helm Used Values
+The `-SnapshotHelmUsedValues` switch captures only the **used values** for Helm releases. This includes all values (default and user-provided).
+
+To capture only used values for Helm releases in a specific namespace:
+
+```powershell
+Invoke-KubeSnapIt -SnapshotHelmUsedValues -Namespace "my-namespace" -OutputPath "./helm-backups"
+```
+
+To capture only used values for Helm releases in all namespaces:
+
+```powershell
+Invoke-KubeSnapIt -SnapshotHelmUsedValues -AllNamespaces -OutputPath "./helm-backups"
+```
+
+To capture only used values for Helm releases in all non-system namespaces:
+
+```powershell
+Invoke-KubeSnapIt -SnapshotHelmUsedValues -AllNonSystemNamespaces -OutputPath "./helm-backups"
+```
+
+---
+
+### Combining Full Snapshots and Used Values
+You can combine the `-SnapshotHelm` and `-SnapshotHelmUsedValues` switches to capture a full Helm snapshot and used values simultaneously.
+
+To capture both full snapshots and used values for Helm releases in a specific namespace:
+
+```powershell
+Invoke-KubeSnapIt -SnapshotHelm -SnapshotHelmUsedValues -Namespace "my-namespace" -OutputPath "./helm-backups"
+```
+
+To capture both full snapshots and used values for Helm releases in all namespaces:
+
+```powershell
+Invoke-KubeSnapIt -SnapshotHelm -SnapshotHelmUsedValues -AllNamespaces -OutputPath "./helm-backups"
+```
+
+To capture both full snapshots and used values for Helm releases in all non-system namespaces:
+
+```powershell
+Invoke-KubeSnapIt -SnapshotHelm -SnapshotHelmUsedValues -AllNonSystemNamespaces -OutputPath "./helm-backups"
+```
+
+---
 
 ## Comparing Snapshots
 
@@ -86,6 +145,8 @@ To compare two local snapshots:
 ```powershell
 Invoke-KubeSnapIt -CompareSnapshots -InputPath "./snapshots/snapshot1" -ComparePath "./snapshots/snapshot2"
 ```
+
+---
 
 ## Restoring a Snapshot
 
@@ -105,6 +166,7 @@ Invoke-KubeSnapIt -Restore -InputPath "./snapshots/your_snapshot.yaml" -Force
 
 This command restores the resources from the specified snapshot without asking for confirmation.
 
+---
 
 ## Dry Run Mode
 
