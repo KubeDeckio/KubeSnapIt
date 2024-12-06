@@ -69,7 +69,7 @@ function Save-HelmBackup {
             [string]$NamespaceOption
         )
 
-        $helmUsedValuesCmd = "get values $ReleaseName $NamespaceOption --all -o yaml"
+        $helmUsedValuesCmd = "get values $ReleaseName $NamespaceOption -o yaml"
         Write-Verbose "Running command: helm $helmUsedValuesCmd"
         $usedValuesOutput = Invoke-HelmCommand $helmUsedValuesCmd
 
