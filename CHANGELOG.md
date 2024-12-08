@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.12] - 2024-12-08
+
+### Added:
+- **Helm Backend Storage**: `$SnapshotHelm` now includes a backup of Helm backend storage (Secrets or ConfigMaps), ensuring that all metadata for Helm releases is captured in snapshots.
+- **Verbose Backend Logging**: Detailed logging of backend type (Secrets or ConfigMaps) and operations is now included when running in verbose mode.
+
+### Fixed:
+- **Empty Release Handling**: Improved handling of namespaces with no Helm releases, avoiding unnecessary warnings and providing clear messages instead.
+- **Error Messages**: Enhanced error messages for missing tools (`helm` or `kubectl`) to include actionable instructions for installation.
+
 ## [0.0.11] - 2024-12-06
 
 ### Fixed:
