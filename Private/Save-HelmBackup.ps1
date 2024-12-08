@@ -6,7 +6,7 @@ function Save-HelmBackup {
         [switch]$Verbose,
         [switch]$AllNamespaces,
         [switch]$AllNonSystemNamespaces,
-        [switch]$SnapshotHelm,           # Perform a full Helm snapshot
+        [switch]$SnapshotHelm,           # Perform a full Helm snapshot (includes backend storage)
         [switch]$SnapshotHelmUsedValues # Perform only Helm used values snapshot
     )
 
@@ -81,6 +81,31 @@ function Save-HelmBackup {
         }
     }
 
+    # Function to backup backend storage
+    function Backup-HelmBackend {
+        param (
+            [string]$Namespace
+        )
+        Write-Verbose "Backing up Helm storage backend for namespace: $Namespace" -ForegroundColor Yellow
+        $backendType = kubectl get secrets -n $Namespace -o jsonpath="{.items[?(@.metadata.name=='sh.helm.release.v1')].type}" | Select-Object -First 1
+        if ($backendType -match "helm.sh/release.v1") {
+            Write-Verbose "Detected backend: Secrets"
+            $releases = kubectl get secrets -n $Namespace -l "owner=helm" -o json | ConvertFrom-Json
+        } else {
+            Write-Verbose "Detected backend: ConfigMaps"
+            $releases = kubectl get configmaps -n $Namespace -l "owner=helm" -o json | ConvertFrom-Json
+        }
+
+        foreach ($release in $releases.items) {
+            $releaseName = $release.metadata.name
+            $safeName = $releaseName -replace "[:\\/]", "_"
+            $timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
+            $filePath = Join-Path -Path $OutputPath -ChildPath "${safeName}_backend_$timestamp.json"
+            $release | ConvertTo-Json -Depth 10 | Out-File -FilePath $filePath -Force
+            Write-Host "Stored Helm backend release: $filePath" -ForegroundColor Green
+        }
+    }
+
     # Function to process a namespace
     function Backup-HelmNamespace {
         param (
@@ -90,6 +115,11 @@ function Save-HelmBackup {
         $namespaceOption = ""
         if ($Namespace) {
             $namespaceOption = "-n $Namespace"
+        }
+
+        # Back up backend storage if SnapshotHelm is enabled
+        if ($SnapshotHelm) {
+            Backup-HelmBackend -Namespace $Namespace
         }
 
         $helmListCmd = "list $namespaceOption --output json"
