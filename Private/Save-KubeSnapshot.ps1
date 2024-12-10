@@ -1,7 +1,7 @@
 function Save-KubeSnapshot {
     param (
         [string]$Namespace,
-        [switch]$AllNamespaces,
+        [switch]$ClusterResources,
         [switch]$AllNonSystemNamespaces,
         [string]$Labels,
         [string]$OutputPath,
@@ -16,9 +16,7 @@ function Save-KubeSnapshot {
 
     # Function to run kubectl command and return output
     function Invoke-KubectlCommand {
-        param (
-            [string]$command     # kubectl command without the 'kubectl' part
-        )
+        param ([string]$command)
         $processInfo = New-Object System.Diagnostics.ProcessStartInfo
         $processInfo.FileName = "kubectl"
         $processInfo.Arguments = $command
@@ -29,11 +27,8 @@ function Save-KubeSnapshot {
 
         $process = New-Object System.Diagnostics.Process
         $process.StartInfo = $processInfo
-
-        # Start the kubectl process
         $process.Start() | Out-Null
 
-        # Capture output and error
         $output = $process.StandardOutput.ReadToEnd()
         $stderr = $process.StandardError.ReadToEnd()
         $process.WaitForExit()
@@ -45,176 +40,122 @@ function Save-KubeSnapshot {
         return $output
     }
 
-    # Function to fetch resource kinds dynamically
-    function Get-KubernetesResources {
-        # Fetch the plain-text output
-        $apiResourcesOutput = Invoke-KubectlCommand "api-resources"
-
-        # Initialize arrays to store namespaced and cluster-scoped resources
-        $namespacedResources = @()
-        $clusterScopedResources = @()
-
-        # Process each line of the output, skipping the header line
-        $apiResourcesOutput -split "`n" | ForEach-Object {
-            # Match valid resource lines (ignoring the header and empty lines)
-            if ($_ -match "^(?<Name>\S+)\s+(?<ShortName>\S*)\s+(?<APIGroups>\S*)\s+(?<Namespaced>\S+)\s+(?<Kind>\S+)$") {
-                # Check if the resource is namespaced
-                if ($matches['Namespaced'] -eq "true") {
-                    $namespacedResources += $matches['Name']
-                }
-                else {
-                    $clusterScopedResources += $matches['Name']
-                }
-            }
+    # Function to save CRD instances
+    function Save-CRDInstances {
+        param (
+            [string]$crdName,
+            [string]$crdInstancesOutput,
+            [string]$OutputPath,
+            [string]$Scope, # "Cluster" or "Namespaced"
+            [string]$Namespace = "" # Optional namespace for namespaced CRDs
+        )
+        if (-not $crdInstancesOutput -or $crdInstancesOutput -match "items: \[\]") {
+            Write-Verbose "No instances found for $Scope-scoped CRD: $crdName"
+            return
         }
 
-        return @{
-            NamespacedResources    = $namespacedResources
-            ClusterScopedResources = $clusterScopedResources
-        }
+        $timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
+        $scopedLabel = $Scope.ToLower()
+        $namespaceLabel = if ($Namespace) { "_${Namespace}" } else { "" }
+        $crdFile = Join-Path -Path $OutputPath -ChildPath "${crdName}${namespaceLabel}_${scopedLabel}_instances_${timestamp}.yaml"
+        $crdInstancesOutput | Out-File -FilePath $crdFile -Force
+        Write-Host "$Scope-scoped CRD instances of '$crdName' saved to: $crdFile" -ForegroundColor Green
     }
 
-    # Fetch resources and categorize them
-    $resources = Get-KubernetesResources
-    $namespacedResources = $resources.NamespacedResources
-    $clusterScopedResources = $resources.ClusterScopedResources
+    # Define resource kinds
+    $namespacedResources = @(
+        "deployments", 
+        "daemonsets", 
+        "statefulsets", 
+        "configmaps", 
+        "secrets", 
+        "services", 
+        "ingresses", 
+        "persistentvolumeclaims", 
+        "horizontalpodautoscalers", 
+        "roles", 
+        "rolebindings", 
+        "serviceaccounts", 
+        "cronjobs", 
+        "jobs", 
+        "networkpolicies", 
+        "poddisruptionbudgets", 
+        "resourcequotas", 
+        "limitranges"
+    )
 
-    # Command to capture all pods if no specific pod is provided
-    $unmanagedPodsCmd = "get pods --output=json"
+    $clusterScopedResources = @(
+        "persistentvolumes", 
+        "clusterroles", 
+        "clusterrolebindings", 
+        "namespaces",
+        "customresourcedefinitions"
+    )
 
-    # Set namespace option based on parameters
-    if ($AllNamespaces) {
+    # Namespace configuration
+    if ($ClusterResources) {
         $namespaceOption = "--all-namespaces"
-        $unmanagedPodsCmd += " --all-namespaces"
-    }
-    elseif ($AllNonSystemNamespaces) {
-        # Get all non-system namespaces
+    } elseif ($AllNonSystemNamespaces) {
         $namespaces = Invoke-KubectlCommand "get namespaces -o json" | ConvertFrom-Json
         $nonSystemNamespaces = $namespaces.items | Where-Object { $_.metadata.name -notmatch "^(kube-system|kube-public|kube-node-lease|default)$" } | Select-Object -ExpandProperty metadata | Select-Object -ExpandProperty name
-    }
-    elseif ($Namespace) {
-        # Check if the namespace exists
+    } elseif ($Namespace) {
         $namespaceCheck = Invoke-KubectlCommand "get namespace $Namespace" 2>$null
         if (-not $namespaceCheck) {
             Write-Host "Namespace '$Namespace' does not exist in the cluster." -ForegroundColor Red
             return
         }
-
         $namespaceOption = "-n $Namespace"
-        $unmanagedPodsCmd += " -n $Namespace"
-    }
-    else {
+    } else {
         $namespaceOption = ""
     }
 
     if ($Labels) {
         $labelOption = "-l $Labels"
-        $unmanagedPodsCmd += " -l $Labels"
-    }
-    else {
+    } else {
         $labelOption = ""
     }
 
     if (-not $DryRun) {
         try {
-            $resourcesFound = $false  # Flag to track if any resources are found
-
-            # Function to process resources in a namespace
+            # Function to process namespaced resources
             function Process-Namespace {
-                param (
-                    [string]$Namespace
-                )
-            
-                $namespaceOption = "-n $Namespace"
-                $unmanagedPodsCmd = "get pods -n $Namespace --output=json"
-            
-                # If specific objects are provided, process them first
-                if ($Objects) {
-                    $ObjectsArray = $Objects -split ","
-            
-                    foreach ($object in $ObjectsArray) {
-                        $kind, $name = $object.Trim() -split "/"
-                        $kubectlCmd = "get $kind $name $namespaceOption -o yaml"
-                        Write-Verbose "Running command: kubectl $kubectlCmd"
-                        $resourceOutput = Invoke-KubectlCommand $kubectlCmd
-            
-                        if ($resourceOutput) {
-                            $resourcesFound = $true  # Resources found
-                            $resourceOutputYaml = $resourceOutput | ConvertFrom-Yaml
-                            $resourceName = $resourceOutputYaml.metadata.name
-                            $kind = $resourceOutputYaml.kind
-                            $timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
-            
-                            # Sanitize the resourceName by replacing invalid characters with underscores
-                            $safeResourceName = $resourceName -replace "[:\\/]", "_"
-            
-                            # Generate a filename based on the kind and name of the resource
-                            $resourceFile = Join-Path -Path $OutputPath -ChildPath "${kind}_${safeResourceName}_$timestamp.yaml"
-            
-                            Write-Verbose "Saving $kind '$resourceName' snapshot to: $resourceFile"
-                            $resourceOutput | Out-File -FilePath $resourceFile -Force
-                            Write-Host "$kind '$resourceName' snapshot saved: $resourceFile" -ForegroundColor Green
-                        }
+                param ([string]$Namespace)
+                foreach ($resource in $namespacedResources) {
+                    $kubectlCmd = "get $resource -n $Namespace $labelOption -o json"
+                    Write-Verbose "Running command: kubectl $kubectlCmd"
+                    $resourceOutput = Invoke-KubectlCommand $kubectlCmd
+
+                    if (-not $resourceOutput -or $resourceOutput -match '"items": \[\]') {
+                        Write-Verbose "No $resource found in namespace $Namespace. Skipping."
+                        continue
+                    }
+
+                    $resourceOutputJson = $resourceOutput | ConvertFrom-Json
+                    foreach ($item in $resourceOutputJson.items) {
+                        $resourceName = $item.metadata.name
+                        $kind = $item.kind
+                        $timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
+                        $safeResourceName = $resourceName -replace "[:\\/]", "_"
+                        $resourceFile = Join-Path -Path $OutputPath -ChildPath "${kind}_${safeResourceName}_$timestamp.yaml"
+                        $item | ConvertTo-Yaml | Out-File -FilePath $resourceFile -Force
+                        Write-Host "Saved $kind '$resourceName' in namespace '$Namespace': $resourceFile" -ForegroundColor Green
                     }
                 }
-                else {
-                    # Capture namespaced resources
-                    foreach ($resource in $namespacedResources) {
-                        $kubectlCmd = "get $resource $namespaceOption $labelOption -o json"
-                        Write-Verbose "Running command: kubectl $kubectlCmd"
-                        $resourceOutput = Invoke-KubectlCommand $kubectlCmd
-            
-                        # Skip if the resource does not exist (i.e., no items)
-                        if (-not $resourceOutput -or $resourceOutput -eq "null" -or $resourceOutput.Contains('"items": []')) {
-                            Write-Verbose "No $resource found in this namespace. Skipping."
-                            continue
-                        }
-            
-                        $resourcesFound = $true  # Resources found
-            
-                        # Convert JSON to objects for easier processing
-                        $resourceOutputJson = $resourceOutput | ConvertFrom-Json
-            
-                        # Process each individual item in the resource output
-                        foreach ($item in $resourceOutputJson.items) {
-                            $resourceName = $item.metadata.name
-                            $kind = $item.kind
-                            $timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
-            
-                            # Sanitize the resourceName by replacing invalid characters with underscores
-                            $safeResourceName = $resourceName -replace "[:\\/]", "_"
-            
-                            # Generate a filename based on the kind and name of the resource
-                            $resourceFile = Join-Path -Path $OutputPath -ChildPath "${kind}_${safeResourceName}_$timestamp.yaml"
-            
-                            # Convert the item back to YAML and save it
-                            $item | ConvertTo-Yaml | Out-File -FilePath $resourceFile -Force
-                            Write-Verbose "Saving $kind '$resourceName' snapshot to: $resourceFile"
-                            Write-Host "$kind '$resourceName' snapshot saved: $resourceFile" -ForegroundColor Green
-                        }
-                    }
-            
-                    # Capture unmanaged pods (those without ownerReferences)
-                    Write-Verbose "Running command for unmanaged pods: $unmanagedPodsCmd"
-                    $unmanagedPodsOutput = Invoke-KubectlCommand $unmanagedPodsCmd
-                    if ($unmanagedPodsOutput) {
-                        $resourcesFound = $true  # Resources found
-                        $unmanagedPodsOutputJson = $unmanagedPodsOutput | ConvertFrom-Json
-                        foreach ($pod in $unmanagedPodsOutputJson.items) {
-                            if (-not $pod.metadata.ownerReferences) {
-                                $podName = $pod.metadata.name
-                                $timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
-                                $unmanagedPodFile = Join-Path -Path $OutputPath -ChildPath "unmanaged_pod_${podName}_$timestamp.yaml"
-            
-                                $pod | ConvertTo-Yaml | Out-File -FilePath $unmanagedPodFile -Force
-                                Write-Verbose "Saving unmanaged pod '$podName' snapshot to: $unmanagedPodFile"
-                                Write-Host "Unmanaged pod '$podName' snapshot saved: $unmanagedPodFile" -ForegroundColor Green
-                            }
+
+                # Process namespaced CRDs
+                $crds = Invoke-KubectlCommand "get crds -o json" | ConvertFrom-Json
+                if ($crds) {
+                    foreach ($crd in $crds.items) {
+                        $crdName = $crd.metadata.name
+                        if ($crd.spec.scope -eq "Namespaced") {
+                            $kubectlCmd = "get $crdName -n $Namespace -o yaml"
+                            Write-Verbose "Running command for namespaced CRD instances: kubectl $kubectlCmd"
+                            $crdInstancesOutput = Invoke-KubectlCommand $kubectlCmd
+                            Save-CRDInstances -crdName $crdName -crdInstancesOutput $crdInstancesOutput -OutputPath $OutputPath -Scope "Namespaced" -Namespace $Namespace
                         }
                     }
                 }
             }
-            
 
             # Process each namespace
             if ($AllNonSystemNamespaces) {
@@ -222,68 +163,40 @@ function Save-KubeSnapshot {
                     Write-Host "Processing namespace: $ns"
                     Process-Namespace -Namespace $ns
                 }
-            }
-            elseif ($Namespace) {
-                write-host "Processing namespace: $Namespace"
+            } elseif ($Namespace) {
+                Write-Host "Processing namespace: $Namespace"
                 Process-Namespace -Namespace $Namespace
             }
 
-            # Capture cluster-scoped resources if AllNamespaces is specified
-            if ($AllNamespaces) {
-                $clusterResourcesFound = $false  # Track if any cluster-scoped resources are found
-
+            # Cluster-scoped resources
+            if ($ClusterResources) {
+                Write-Verbose "Processing cluster-scoped resources"
                 foreach ($resource in $clusterScopedResources) {
-                    $kubectlCmd = "get $resource -o json" # No namespace option for cluster-scoped resources
+                    $kubectlCmd = "get $resource -o json"
                     Write-Verbose "Running command: kubectl $kubectlCmd"
                     $resourceOutput = Invoke-KubectlCommand $kubectlCmd
 
-                    # Skip if the resource does not exist (i.e., no items)
-                    if (-not $resourceOutput -or $resourceOutput -eq "null" -or $resourceOutput.Contains('"items": []')) {
+                    if (-not $resourceOutput -or $resourceOutput -match '"items": \[\]') {
                         Write-Verbose "No $resource found. Skipping."
                         continue
                     }
 
-                    $clusterResourcesFound = $true  # Resources found
-
-                    # Convert JSON to objects for easier processing
                     $resourceOutputJson = $resourceOutput | ConvertFrom-Json
-
-                    # Process each individual item in the resource output
                     foreach ($item in $resourceOutputJson.items) {
                         $resourceName = $item.metadata.name
                         $kind = $item.kind
                         $timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
-
-                        # Sanitize the resourceName by replacing invalid characters with underscores
                         $safeResourceName = $resourceName -replace "[:\\/]", "_"
-
-                        # Generate a filename based on the kind and name of the resource
                         $resourceFile = Join-Path -Path $OutputPath -ChildPath "${kind}_${safeResourceName}_$timestamp.yaml"
-
-                        # Convert the item back to YAML and save it
                         $item | ConvertTo-Yaml | Out-File -FilePath $resourceFile -Force
-                        Write-Verbose "Saving $kind '$resourceName' snapshot to: $resourceFile"
-                        Write-Host "$kind '$resourceName' snapshot saved: $resourceFile" -ForegroundColor Green
+                        Write-Host "Saved $kind '$resourceName': $resourceFile" -ForegroundColor Green
                     }
                 }
-
-                # If no cluster-scoped resources were found
-                if (-not $clusterResourcesFound) {
-                    Write-Host "No cluster-scoped resources found." -ForegroundColor Yellow
-                }
             }
-
-            # If no resources were found in the namespace
-            if (-not $resourcesFound) {
-                Write-Host "No resources found in the namespace '$Namespace'." -ForegroundColor Yellow
-            }
-
+        } catch {
+            Write-Host "Error occurred while capturing snapshots: $_" -ForegroundColor Red
         }
-        catch {
-            Write-Host "Error occurred while capturing the snapshot: $_" -ForegroundColor Red
-        }
-    }
-    else {
+    } else {
         Write-Host "Dry run: No snapshot was taken."
     }
 }

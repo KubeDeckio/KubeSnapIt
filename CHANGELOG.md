@@ -17,6 +17,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - **Empty Release Handling**: Improved handling of namespaces with no Helm releases, avoiding unnecessary warnings and providing clear messages instead.
 - **Error Messages**: Enhanced error messages for missing tools (`helm` or `kubectl`) to include actionable instructions for installation.
 
+- **Changed**: Replaced `$AllNamespaces` with `$ClusterResources` for snapshotting cluster-scoped resources. `$AllNamespaces` remains available for Helm snapshotting purposes. 
+
 ## [0.0.11] - 2024-12-06
 
 ### Fixed:
