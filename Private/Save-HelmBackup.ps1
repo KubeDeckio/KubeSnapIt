@@ -6,7 +6,7 @@ function Save-HelmBackup {
         [switch]$Verbose,
         [switch]$AllNamespaces,
         [switch]$AllNonSystemNamespaces,
-        [switch]$SnapshotHelm,           # Perform a full Helm snapshot (includes backend storage)
+        [switch]$SnapshotHelm, # Perform a full Helm snapshot (includes backend storage)
         [switch]$SnapshotHelmUsedValues # Perform only Helm used values snapshot
     )
 
@@ -75,7 +75,8 @@ function Save-HelmBackup {
 
         if ($usedValuesOutput) {
             return $usedValuesOutput
-        } else {
+        }
+        else {
             Write-Host "No used values found for release '$ReleaseName'." -ForegroundColor Yellow
             return $null
         }
@@ -86,24 +87,34 @@ function Save-HelmBackup {
         param (
             [string]$Namespace
         )
-        Write-Verbose "Backing up Helm storage backend for namespace: $Namespace" -ForegroundColor Yellow
-        $backendType = kubectl get secrets -n $Namespace -o jsonpath="{.items[?(@.metadata.name=='sh.helm.release.v1')].type}" | Select-Object -First 1
+        Write-Verbose "Backing up Helm storage backend for namespace: $Namespace"
+        $secrets = kubectl get secrets -n $Namespace -o json | ConvertFrom-Json
+        $backendType = $secrets.items | Where-Object { $_.type -eq 'helm.sh/release.v1' -and $_.metadata.name -like '*sh.helm.release.v1*' } | Select-Object -First 1
+
         if ($backendType -match "helm.sh/release.v1") {
             Write-Verbose "Detected backend: Secrets"
             $releases = kubectl get secrets -n $Namespace -l "owner=helm" -o json | ConvertFrom-Json
-        } else {
+        }
+        else {
             Write-Verbose "Detected backend: ConfigMaps"
             $releases = kubectl get configmaps -n $Namespace -l "owner=helm" -o json | ConvertFrom-Json
         }
 
+        # Prepare YAML output file
+
+        $releaseName = $release.metadata.labels.name
+        $safeName = $releaseName -replace "[:\\/]", "_"
+        $timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
+        $filePath = Join-Path -Path $OutputPath -ChildPath "${safeName}_backend_$timestamp.yaml"
+        New-Item -Path $filePath -ItemType File -Force | Out-Null
+
+        # Convert and append each release to the YAML file
         foreach ($release in $releases.items) {
-            $releaseName = $release.metadata.name
-            $safeName = $releaseName -replace "[:\\/]", "_"
-            $timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
-            $filePath = Join-Path -Path $OutputPath -ChildPath "${safeName}_backend_$timestamp.json"
-            $release | ConvertTo-Json -Depth 10 | Out-File -FilePath $filePath -Force
-            Write-Host "Stored Helm backend release: $filePath" -ForegroundColor Green
+            $yamlContent = ConvertTo-Yaml -Data $release
+            Add-Content -Path $filePath -Value $yamlContent
+            Add-Content -Path $filePath -Value "---"
         }
+        Write-Host "Helm release '$releaseName' backend saved: $filePath" -ForegroundColor Green
     }
 
     # Function to process a namespace
@@ -141,8 +152,9 @@ function Save-HelmBackup {
 
                 if ($DryRun) {
                     Write-Host "Dry run: Found Helm release '$releaseName' in namespace '$releaseNamespace'."
-                } else {
-                    # Full Helm snapshot (values, manifest, and history)
+                }
+                else {
+                    # Full Helm snapshot (values, and manifest)
                     if ($SnapshotHelm) {
                         # Fetch values
                         $helmGetValuesCmd = "get values $releaseName $namespaceOption -o yaml"
@@ -164,16 +176,6 @@ function Save-HelmBackup {
                             $manifestOutput | Out-File -FilePath $manifestFile -Force
                             Write-Host "Helm release '$releaseName' manifest saved: $manifestFile" -ForegroundColor Green
                         }
-
-                        # Fetch history
-                        $helmHistoryCmd = "history $releaseName $namespaceOption --output yaml"
-                        Write-Verbose "Running command: helm $helmHistoryCmd"
-                        $historyOutput = Invoke-HelmCommand $helmHistoryCmd
-                        if ($historyOutput) {
-                            $historyFile = Join-Path -Path $OutputPath -ChildPath "${safeReleaseName}_history_$timestamp.yaml"
-                            $historyOutput | Out-File -FilePath $historyFile -Force
-                            Write-Host "Helm release '$releaseName' history saved: $historyFile" -ForegroundColor Green
-                        }
                     }
 
                     # Only Helm used values snapshot
@@ -188,7 +190,8 @@ function Save-HelmBackup {
                     }
                 }
             }
-        } else {
+        }
+        else {
             Write-Host "No Helm releases found in the namespace '$Namespace'." -ForegroundColor Yellow
         }
     }
@@ -198,12 +201,15 @@ function Save-HelmBackup {
         if ($AllNamespaces) {
             $namespaces = kubectl get namespaces -o json | ConvertFrom-Json
             $allClusterNamespaces = $namespaces.items | ForEach-Object { $_.metadata.name }
-        } elseif ($AllNonSystemNamespaces) {
+        }
+        elseif ($AllNonSystemNamespaces) {
             $namespaces = kubectl get namespaces -o json | ConvertFrom-Json
             $allClusterNamespaces = $namespaces.items | Where-Object { $_.metadata.name -notmatch "^(kube-system|kube-public|kube-node-lease|default)$" } | ForEach-Object { $_.metadata.name }
-        } elseif ($Namespace) {
+        }
+        elseif ($Namespace) {
             $allClusterNamespaces = @($Namespace)
-        } else {
+        }
+        else {
             Write-Host "No namespace specified." -ForegroundColor Red
             return
         }

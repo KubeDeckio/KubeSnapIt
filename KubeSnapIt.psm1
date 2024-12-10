@@ -87,6 +87,7 @@ function Invoke-KubeSnapIt {
         [switch]$UI,
         [switch]$SnapshotHelm,
         [switch]$SnapshotHelmUsedValues,
+        [switch]$RestoreHelmSnapshot,
         [Alias("h")] [switch]$Help
     )
     # END PARAM BLOCK
@@ -110,6 +111,7 @@ function Invoke-KubeSnapIt {
         Write-Host "  -Force               Force the action without prompting for confirmation."
         Write-Host "  -SnapshotHelm        Backup Helm releases and their values."
         Write-Host "  -SnapshotHelmUsedValues  Backup Helm release values."
+        write-Host "  -RestoreHelmSnapshot Restore Helm release from a snapshot."
         Write-Host "  -Help                Display this help message."
         return
     }
@@ -259,6 +261,15 @@ function Invoke-KubeSnapIt {
             catch {
                 Write-Host "Error during Helm backup: $_" -ForegroundColor Red
             }
+            return
+        }
+
+        { $RestoreHelmSnapshot } {
+            if (-not $InputPath) {
+                Write-Host "Error: Input path required for restore." -ForegroundColor Red
+                return
+            }
+            Restore-HelmBackup -ManifestFilePath:$InputPath -Namespace:$Namespace -DryRun:$DryRun -Verbose:$Verbose
             return
         }
 
