@@ -191,9 +191,6 @@ function Save-HelmBackup {
                 }
             }
         }
-        else {
-            Write-Host "No Helm releases found in the namespace '$Namespace'." -ForegroundColor Yellow
-        }
     }
 
     try {
