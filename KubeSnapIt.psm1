@@ -75,6 +75,7 @@ function Invoke-KubeSnapIt {
         [string]$OutputPath = "./snapshots",
         [string]$InputPath = "", 
         [string]$ComparePath = "",
+        [switch]$ClusterResources,
         [switch]$AllNamespaces,
         [switch]$AllNonSystemNamespaces,
         [string]$Labels = "",
@@ -87,6 +88,7 @@ function Invoke-KubeSnapIt {
         [switch]$UI,
         [switch]$SnapshotHelm,
         [switch]$SnapshotHelmUsedValues,
+        [switch]$RestoreHelmSnapshot,
         [Alias("h")] [switch]$Help
     )
     # END PARAM BLOCK
@@ -99,6 +101,7 @@ function Invoke-KubeSnapIt {
         Write-Host "  -OutputPath          Path to save the snapshot files."
         Write-Host "  -InputPath           Path to restore snapshots from or the first snapshot for comparison."
         Write-Host "  -ComparePath         Path to the second snapshot for comparison (optional)."
+        Write-Host "  -ClusterResources    Capture cluster-wide resources (e.g., crd's, namespaces)."
         Write-Host "  -AllNamespaces       Capture all namespaces. If this is provided, -Namespace will be ignored."
         Write-Host "  -AllNonSystemNamespaces Capture all non-system namespaces. If this is provided, -Namespace and -AllNamespaces will be ignored."
         Write-Host "  -Labels              Specify labels to filter Kubernetes objects (e.g., app=nginx)."
@@ -110,6 +113,7 @@ function Invoke-KubeSnapIt {
         Write-Host "  -Force               Force the action without prompting for confirmation."
         Write-Host "  -SnapshotHelm        Backup Helm releases and their values."
         Write-Host "  -SnapshotHelmUsedValues  Backup Helm release values."
+        write-Host "  -RestoreHelmSnapshot Restore Helm release from a snapshot."
         Write-Host "  -Help                Display this help message."
         return
     }
@@ -262,7 +266,16 @@ function Invoke-KubeSnapIt {
             return
         }
 
-        { $Namespace -or $AllNamespaces -or $AllNonSystemNamespaces } {
+        { $RestoreHelmSnapshot } {
+            if (-not $InputPath) {
+                Write-Host "Error: Input path required for restore." -ForegroundColor Red
+                return
+            }
+            Restore-HelmBackup -ManifestFilePath:$InputPath -Namespace:$Namespace -DryRun:$DryRun -Verbose:$Verbose
+            return
+        }
+
+        { $Namespace -or $ClusterResources -or $AllNonSystemNamespaces } {
             if (-not (Test-Path -Path $OutputPath)) {
                 New-Item -Path $OutputPath -ItemType Directory -Force | Out-Null
                 Write-Verbose "Output directory created: $OutputPath"
@@ -272,7 +285,7 @@ function Invoke-KubeSnapIt {
 
             # Snapshot function call
             try {
-                Save-KubeSnapshot -Namespace $Namespace -AllNamespaces:$AllNamespaces -AllNonSystemNamespaces:$AllNonSystemNamespaces -Labels $Labels -Objects $Objects -OutputPath $OutputPath -DryRun:$DryRun -Verbose:$Verbose
+                Save-KubeSnapshot -Namespace $Namespace -ClusterResources:$ClusterResources -AllNonSystemNamespaces:$AllNonSystemNamespaces -Labels $Labels -Objects $Objects -OutputPath $OutputPath -DryRun:$DryRun -Verbose:$Verbose
             }
             catch {
                 Write-Host "Error during snapshot: $_" -ForegroundColor Red
@@ -281,7 +294,7 @@ function Invoke-KubeSnapIt {
         }
 
         default {
-            Write-Host "Error: Specify -Restore, -CompareWithCluster, -CompareSnapshots, or -SnapshotHelm with necessary parameters." -ForegroundColor Red
+            Write-Host "Error: Specify -Restore, -CompareWithCluster, -CompareSnapshots, or -SnapshotHelm, or -ClusterResources with necessary parameters." -ForegroundColor Red
             return
         }
     }
