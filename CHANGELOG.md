@@ -9,6 +9,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ### Added:
 - **Helm Backend Storage**: `$SnapshotHelm` now includes a backup of Helm backend storage (Secrets or ConfigMaps), ensuring that all metadata for Helm releases is captured in snapshots.
 - **Verbose Backend Logging**: Detailed logging of backend type (Secrets or ConfigMaps) and operations is now included when running in verbose mode.
+- **Helm Restore with History**: Added support for restoring Helm releases, including their full history and backend configuration (Secrets or ConfigMaps). This ensures a complete recovery of release state.
+- **Dynamic Resource Discovery**: Replaced hardcoded lists of resource kinds with dynamic discovery using `kubectl api-resources`. This ensures all available Kubernetes resource types, including CRDs and their objects, are automatically included in snapshots.
+- **Automatic CRD Object Backup**: CRD objects are now seamlessly backed up alongside other resources without requiring separate logic.
 
 ### Fixed:
 - **Empty Release Handling**: Improved handling of namespaces with no Helm releases, avoiding unnecessary warnings and providing clear messages instead.
