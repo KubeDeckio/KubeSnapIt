@@ -4,6 +4,8 @@ nav_order: 1
 layout: home
 ---
 
+## New Logo!
+
 <p align="center">
 <img id="logo" src="assets/images/KubeSnapIt.png" />
 </p>
