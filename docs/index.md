@@ -9,7 +9,7 @@ layout: home
 ## **Effortless Kubernetes Snapshot Management – Built with PowerShell**
 
 <p align="center">
-<img id="logo" src="assets/images/KubeSnapItLogo.png" />
+<img id="logo" src="assets/images/KubeSnapIt.png" />
 </p>
 
 Welcome to **KubeSnapIt** – the **PowerShell-driven** tool designed to help you **capture, compare, and automate Kubernetes snapshots** effortlessly.
@@ -35,7 +35,7 @@ Whether you're debugging cluster state changes, ensuring compliance, or tracking
 ---
 
 <p align="center">
-<img id="logo" src="assets/images/KubeSnapItLogo.png" width="200px" />
+<img id="logo" src="assets/images/KubeSnapIt.png" width="200px" />
 </p>
 
 💡 **Capture and track your Kubernetes configurations today with KubeSnapIt – Powered by PowerShell!**
