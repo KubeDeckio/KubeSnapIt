@@ -5,185 +5,150 @@ nav_order: 2
 layout: default
 ---
 
-# Krew Plugin Usage
+# ⎈ Krew Plugin Usage
 
-If you're using **KubeSnapIt** via Krew as a `kubectl` plugin (Linux/macOS), here are the usage examples to help you manage your Kubernetes resources effectively.
+KubeSnapIt is available as a **kubectl plugin** via **Krew** for Linux and macOS users. This allows seamless integration with your existing Kubernetes workflow.
 
 {: .note }
-Ensure you are connected to your Kubernetes cluster before using KubeSnapIt. You can use `kubectl` commands to check your connection and manage your contexts.
-
-## Parameters
-
-| Parameter                  | Description                                                                 |
-|----------------------------|-----------------------------------------------------------------------------|
-| `-Namespace`               | Specifies the namespace to snapshot or restore.                             |
-| `-AllNamespaces`           | Captures or restores all namespaces. Overrides the `-Namespace` parameter.   |
-| `-AllNonSystemNamespaces`  | Capture all non-system namespaces. If this is provided, `-Namespace` and `-AllNamespaces` will be ignored. |
-| `-OutputPath`              | Path to save the snapshot files.                                             |
-| `-InputPath`               | Path to restore snapshots from or for comparison.                           |
-| `-ComparePath`             | Path to the second snapshot for comparison.                                 |
-| `-Labels`                  | Filters Kubernetes objects based on specified labels (e.g., `app=nginx`).   |
-| `-Objects`                 | Comma-separated list of specific objects in the `kind/name` format.          |
-| `-DryRun`                  | Simulates snapshotting or restoring without making any actual changes.       |
-| `-Restore`                 | Restores resources from the specified snapshot path.                        |
-| `-Compare`                 | Compares two snapshots or a snapshot with the current cluster state.         |
-| `-CompareWithCluster`      | Compares a snapshot with the current cluster state.                         |
-| `-Force`                   | Bypasses confirmation prompts when restoring snapshots.                     |
-| `-Verbose`                 | Shows detailed output during the snapshot, restore, or comparison process.   |
-| `-SnapshotHelm`            | Backup Helm releases and their values, manifests, and history.              |
-| `-SnapshotHelmUsedValues`  | Backup only the used values (default and user-provided) for Helm releases.   |
-| `-Help`                    | Displays the help information for using `KubeSnapIt`.                       |
-
-## Taking a Snapshot
-
-To capture a snapshot of Kubernetes resources in a specific namespace:
+Before using KubeSnapIt, ensure you are **connected to your Kubernetes cluster**. Use the following command to check your active Kubernetes context:
 
 ```bash
-kubectl kubesnapit --namespace "your-namespace" --output-path "./snapshots"
+kubectl config current-context
 ```
 
-To capture snapshots of all resources across all namespaces:
-
-```bash
-kubectl kubesnapit --all-namespaces --output-path "./snapshots"
-```
-
-To capture snapshots of all non-system namespaces:
-
-```bash
-kubectl kubesnapit --allnonsystemnamespaces --outputpath ./snapshots
-```
-
-To capture snapshots with specific labels:
-
-```bash
-kubectl kubesnapit --namespace my-namespace --labels app=nginx --outputpath ./snapshots
-```
-
-To capture snapshots of specific objects:
-
-```bash
-kubectl kubesnapit --namespace my-namespace --objects pod/my-pod,deployment/my-deployment --outputpath ./snapshots
-```
+If no context is set, configure one before proceeding.
 
 ---
 
-## Snapshotting Helm Releases
+## 📌 Parameters
+
+| Parameter                  | Description                                                                 |
+|----------------------------|-----------------------------------------------------------------------------|
+| `--namespace`              | Specifies the namespace to snapshot or restore.                             |
+| `--all-namespaces`         | Captures/restores all namespaces. Overrides the `--namespace` parameter.     |
+| `--all-nonsystem-namespaces` | Captures all non-system namespaces, ignoring `--namespace` and `--all-namespaces`. |
+| `--output-path`            | Path to save snapshots.                                                     |
+| `--input-path`             | Path to restore snapshots from or for comparison.                           |
+| `--compare-path`           | Path to the second snapshot for comparison.                                 |
+| `--labels`                 | Filters objects using specified labels (e.g., `app=nginx`).                 |
+| `--objects`                | Comma-separated list of specific objects in `kind/name` format.             |
+| `--dry-run`                | Simulates snapshotting/restoring without changes.                           |
+| `--restore`                | Restores resources from the specified snapshot path.                        |
+| `--compare-with-cluster`   | Compares a snapshot with the current cluster state.                         |
+| `--compare-snapshots`      | Compares two snapshots.                                                     |
+| `--force`                  | Bypasses confirmation prompts when restoring snapshots.                     |
+| `--verbose`                | Displays detailed output during execution.                                  |
+| `--snapshot-helm`          | Backup Helm releases including values, manifests, and history.              |
+| `--snapshot-helm-used-values` | Backup only the user-provided Helm values.                                  |
+| `--restore-helm-snapshot`  | Restore a Helm release from a snapshot.                                    |
+| `--help`                   | Displays KubeSnapIt help information.                                      |
+
+---
+
+## 📂 Taking a Snapshot
+
+### Capture a Namespace Snapshot
+```bash
+kubectl kubesnapit --namespace "your-namespace" --output-path "./snapshots"
+```
+This captures all resources within the specified namespace.
+
+### Capture All Namespaces
+```bash
+kubectl kubesnapit --all-namespaces --output-path "./snapshots"
+```
+This is useful for taking a full snapshot of your cluster.
+
+### Capture Non-System Namespaces
+```bash
+kubectl kubesnapit --all-nonsystem-namespaces --output-path "./snapshots"
+```
+This captures all namespaces except system namespaces like `kube-system`.
+
+---
+
+## ⎈ Snapshotting Helm Releases
+
+Helm releases can be backed up either fully or by storing only used values.
 
 ### Capture Full Helm Snapshots
-A full Helm snapshot includes:
+```bash
+kubectl kubesnapit --snapshot-helm --namespace "my-namespace" --output-path "./helm-backups"
+```
+This captures:
 - Helm release values
 - Helm release manifests
 - Helm release history
 
-To capture snapshots of Helm releases in a specific namespace:
-
-```bash
-kubectl kubesnapit --snapshothelm --namespace my-namespace --outputpath ./helm-backups
-```
-
-To capture snapshots of Helm releases in all namespaces:
-
-```bash
-kubectl kubesnapit --snapshothelm --allnamespaces --outputpath ./helm-backups
-```
-
-To capture snapshots of Helm releases in all non-system namespaces:
-
-```bash
-kubectl kubesnapit --snapshothelm --allnonsystemnamespaces --outputpath ./helm-backups
-```
-
----
-
 ### Capture Only Helm Used Values
-The `--snapshothelmusedvalues` option captures only the **used values** for Helm releases. This includes all values (default and user-provided).
-
-To capture only used values for Helm releases in a specific namespace:
-
 ```bash
-kubectl kubesnapit --snapshothelmusedvalues --namespace my-namespace --outputpath ./helm-backups
+kubectl kubesnapit --snapshot-helm-used-values --namespace "my-namespace" --output-path "./helm-backups"
 ```
+This saves only user-provided Helm values.
 
-To capture only used values for Helm releases in all namespaces:
-
+### Capture Both Helm Snapshots & Used Values
 ```bash
-kubectl kubesnapit --snapshothelmusedvalues --allnamespaces --outputpath ./helm-backups
+kubectl kubesnapit --snapshot-helm --snapshot-helm-used-values --namespace "my-namespace" --output-path "./helm-backups"
 ```
-
-To capture only used values for Helm releases in all non-system namespaces:
-
-```bash
-kubectl kubesnapit --snapshothelmusedvalues --allnonsystemnamespaces --outputpath ./helm-backups
-```
+This ensures **both full snapshots and values** are stored.
 
 ---
 
-### Combining Full Snapshots and Used Values
-You can combine the `--snapshothelm` and `--snapshothelmusedvalues` options to capture a full Helm snapshot and used values simultaneously.
+## 🔍 Comparing Snapshots
 
-To capture both full snapshots and used values for Helm releases in a specific namespace:
-
+### Compare Snapshot vs Cluster
 ```bash
-kubectl kubesnapit --snapshothelm --snapshothelmusedvalues --namespace my-namespace --outputpath ./helm-backups
+kubectl kubesnapit --compare-with-cluster --input-path "./snapshots"
 ```
+This command checks differences between your snapshot and the live cluster.
 
-To capture both full snapshots and used values for Helm releases in all namespaces:
-
+### Compare Two Snapshots
 ```bash
-kubectl kubesnapit --snapshothelm --snapshothelmusedvalues --allnamespaces --outputpath ./helm-backups
+kubectl kubesnapit --compare-snapshots --input-path "./snapshots/snapshot1" --compare-path "./snapshots/snapshot2"
 ```
-
-To capture both full snapshots and used values for Helm releases in all non-system namespaces:
-
-```bash
-kubectl kubesnapit --snapshothelm --snapshothelmusedvalues --allnonsystemnamespaces --outputpath ./helm-backups
-```
+Use this to track configuration changes over time.
 
 ---
 
-## Comparing Snapshots
+## ♻️ Restoring Snapshots
 
-To compare a local snapshot against the live cluster state:
-
+### Restore a Snapshot
 ```bash
-kubectl kubesnapit --comparewithcluster --inputpath ./snapshots
+kubectl kubesnapit --restore --input-path "./snapshots/your_snapshot.yaml"
 ```
+This applies the stored snapshot back to the cluster.
 
-To compare two local snapshots:
-
+### Force Restore Without Confirmation
 ```bash
-kubectl kubesnapit --comparesnapshots --inputpath ./snapshots/snapshot1 --comparepath ./snapshots/snapshot2
+kubectl kubesnapit --restore --input-path "./snapshots/your_snapshot.yaml" --force
 ```
+The `--force` flag bypasses confirmation prompts.
 
 ---
 
-## Resource Restoration
+## 🏗️ Dry Run Mode
 
-To restore a Kubernetes resource from a snapshot using `kubectl KubeSnapIt`, use the following command. By default, this will ask for confirmation before restoring:
-
+### Simulate Snapshot Capture
 ```bash
-kubectl kubesnapit restore --inputpath ./snapshots/your_snapshot.yaml
+kubectl kubesnapit --namespace "your-namespace" --output-path "./snapshots" --dry-run
 ```
+This verifies the snapshot process without saving any files.
 
-### Skipping Confirmation with `--force`
-
-If you want to bypass the confirmation prompt and restore the resources immediately, use the `--force` option:
-
+### Simulate Restore Process
 ```bash
-kubectl kubesnapit restore --inputpath ./snapshots/your_snapshot.yaml --force
+kubectl kubesnapit --restore --input-path "./snapshots/your_snapshot.yaml" --dry-run
 ```
-
-This command restores the resources from the specified snapshot without asking for confirmation.
+This shows what would be restored without making changes.
 
 ---
 
-## Dry Run Mode
+## 🔎 Detailed Logging & Debugging
 
-Use the `--dry-run` option to simulate snapshotting or restoration processes without making any actual changes:
-
+For troubleshooting or auditing, use `--verbose` mode to get detailed logs.
 ```bash
-kubectl kubesnapit --namespace your-namespace --outputpath ./snapshots --dry-run
+kubectl kubesnapit --namespace "your-namespace" --output-path "./snapshots" --verbose
 ```
+This provides a breakdown of every operation performed.
 
-For detailed logging examples, check out our [Logging and Output](../logging-output) page.
+📌 **For more details on logging, visit the [Logging and Output](../logging-output) page.** 🚀
+

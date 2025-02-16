@@ -5,45 +5,58 @@ nav_order: 1
 layout: default
 ---
 
-# Installation
+# ⚡ Installing KubeSnapIt
 
-KubeSnapIt can be installed through the PowerShell Gallery or Krew for Linux and macOS users.
+KubeSnapIt can be installed on **Windows, Linux, and macOS** via the **PowerShell Gallery** or **Krew** for `kubectl` users.
 
-## Installing via PowerShell Gallery
+---
 
-You can install **KubeSnapIt** directly from the PowerShell Gallery:
+## 🖥️ Installing via PowerShell Gallery
+
+For PowerShell users, install **KubeSnapIt** directly from the PowerShell Gallery:
 
 ```powershell
 Install-Module -Name KubeSnapIt -Repository PSGallery -Scope CurrentUser
 ```
 
-To update **KubeSnapIt**:
+### 🔄 Updating KubeSnapIt
+
+To update **KubeSnapIt** to the latest version:
 
 ```powershell
 Update-Module -Name KubeSnapIt
 ```
 
-## Installing via Krew (Linux and macOS)
+---
 
-To install KubeSnapIt as a `kubectl` plugin using [Krew](https://krew.sigs.k8s.io/):
+## 🌍 Installing via Krew (Linux/macOS)
 
-1. **Install Krew**: Follow the instructions [here](https://krew.sigs.k8s.io/docs/user-guide/setup/install/).
-2. **Install KubeSnapIt**: 
+For Kubernetes users on **Linux and macOS**, install KubeSnapIt as a `kubectl` plugin using **Krew**:
+
+### 1️⃣ Install Krew
+Follow the official Krew installation guide [here](https://krew.sigs.k8s.io/docs/user-guide/setup/install/).
+
+### 2️⃣ Install KubeSnapIt via Krew
 
 ```bash
-# Fetch the latest release tag using GitHub's API
-LATEST_VERSION=$(curl -s https://api.github.com/repos/KubeDeckio/KubeSnapIt/releases/latest | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/')
-
-# Download the KubeSnapIt.yaml file from the latest release
-curl -L -H "Cache-Control: no-cache" -O https://github.com/KubeDeckio/KubeSnapIt/releases/download/$LATEST_VERSION/KubeSnapIt.yaml
-
-# Install the plugin using the downloaded KubeSnapIt.yaml file
-kubectl krew install --manifest="./KubeSnapIt.yaml"
+kubectl krew install kubesnapit
 ```
 
-## Requirements
+### 🔄 Updating KubeSnapIt via Krew
 
-- **PowerShell Version**: PowerShell 7 or higher is required.
-- **Additional Dependencies**: The `powershell-yaml` module is needed for YAML parsing. It will be automatically installed when running KubeSnapIt from PowerShell. You also need `kubectl` installed.
+```bash
+kubectl krew upgrade kubesnapit
+```
 
-Now that you've installed KubeSnapIt visit the [Usage Guide](/docs/usage) to start cleaning up your Kubernetes configurations!
+---
+
+## 🔧 Requirements
+
+✅ **PowerShell Version**: PowerShell 7 or higher is required.  
+✅ **Additional Dependencies**: The `powershell-yaml` module is needed for YAML parsing and will be installed automatically.  
+✅ **Krew for Plugin Users**: If using Krew, ensure `kubectl` and Krew are properly configured.  
+
+---
+
+✅ **Next Steps:** Now that KubeSnapIt is installed, check out the [Usage Guide](/docs/usage) to start capturing and comparing Kubernetes snapshots! 📸🚀
+

@@ -4,28 +4,39 @@ nav_order: 1
 layout: home
 ---
 
-## New Logo!
+# 📸 KubeSnapIt – Capture, Compare, Automate!
+
+## **Effortless Kubernetes Snapshot Management – Built with PowerShell**
 
 <p align="center">
-<img id="logo" src="assets/images/KubeSnapIt.png" />
+<img id="logo" src="assets/images/KubeSnapItLogo.png" />
 </p>
 
-Welcome to **KubeSnapIt**! 
+Welcome to **KubeSnapIt** – the **PowerShell-driven** tool designed to help you **capture, compare, and automate Kubernetes snapshots** effortlessly.
 
-KubeSnapIt is a PowerShell tool that simplifies managing your Kubernetes resources by providing functionalities for taking snapshots, comparing resources, and restoring them. Whether you're a Kubernetes administrator managing multiple environments or a developer working with configurations, KubeSnapIt can enhance your workflow and resource management.
+Whether you're debugging cluster state changes, ensuring compliance, or tracking configuration drift, **KubeSnapIt** makes it simple to take snapshots of your cluster resources and compare them over time.
 
-## Key Features
+## ✨ Key Features
 
-- **Snapshot Functionality**: Capture snapshots of various Kubernetes resources (e.g., Deployments, ConfigMaps, Services, ClusterRoles).
-- **Resource Diffing**: Compare local snapshots against live cluster states and between snapshot files.
-- **Resource Restore**: Restore Kubernetes resources from previously taken snapshots.
-- **Dry Run Mode**: Simulate snapshotting or restoration operations to preview the results.
+✅ **Built with PowerShell** – Cross-platform support for Windows, Linux, and macOS.  
+✅ **Snapshot Kubernetes Resources** – Capture cluster state at any point in time.  
+✅ **Compare Snapshots** – Identify changes between different snapshots for troubleshooting and auditing.  
+✅ **Automated Scheduling** – Set up periodic snapshots to monitor cluster drift.  
+✅ **Backup & Restore** – Save snapshots as backups and restore them when needed.  
+✅ **JSON & YAML Support** – Store snapshots in multiple formats for easy analysis.  
+✅ **PowerShell & Krew Support** – Use KubeSnapIt via PowerShell or as a `kubectl` plugin.
 
-Check out our [Installation Guide](docs/installation) to get started or [Usage Documentation](docs/usage) to explore how you can use KubeSnapIt.
+## 🚀 Get Started
+
+📌 **[Installation Guide](docs/installation)** – Step-by-step setup instructions.  
+📌 **[Usage Documentation](docs/usage)** – Learn how to capture and compare snapshots.  
+📌 **[GitHub Repository](https://github.com/KubeDeckio/KubeSnapIt)** – Contribute and follow the latest updates.  
 
 ---
 
-- [Installation](docs/installation)
-- [Usage](docs/usage)
-- [GitHub Repository](https://github.com/KubeDeckio/KubeSnapIt)
-- [Changelog](docs/changelog)
+<p align="center">
+<img id="logo" src="assets/images/KubeSnapItLogo.png" width="200px" />
+</p>
+
+💡 **Capture and track your Kubernetes configurations today with KubeSnapIt – Powered by PowerShell!**
+

@@ -5,185 +5,160 @@ nav_order: 1
 layout: default
 ---
 
-# PowerShell Usage
+# 📸 PowerShell Usage
 
-If you're using **KubeSnapIt** via PowerShell, here are the usage examples to help you manage your Kubernetes resources effectively.
+If you're using **KubeSnapIt** via PowerShell, this guide provides step-by-step instructions to help you **capture**, **compare**, and **restore** Kubernetes snapshots efficiently.
 
 {: .note }
-Ensure you are connected to your Kubernetes cluster before using KubeSnapIt. You can use `kubectl` commands to check your connection and manage your contexts.
+Before using KubeSnapIt, ensure that you are **connected to your Kubernetes cluster**. Use the command below to check your active Kubernetes context:
 
-## Parameters
+```powershell
+kubectl config current-context
+```
+
+This will display the current Kubernetes context you are connected to. If no context is set, configure one before proceeding.
+
+---
+
+## 🛠️ Understanding Parameters
+
+KubeSnapIt provides a variety of options to fine-tune your snapshot and restore operations. Below is a breakdown of the key parameters:
 
 | Parameter                  | Description                                                                 |
 |----------------------------|-----------------------------------------------------------------------------|
 | `-Namespace`               | Specifies the namespace to snapshot or restore.                             |
-| `-AllNamespaces`           | Captures or restores all namespaces. Overrides the `-Namespace` parameter.   |
-| `-AllNonSystemNamespaces`  | Capture all non-system namespaces. If this is provided, `-Namespace` and `-AllNamespaces` will be ignored. |
-| `-OutputPath`              | Path to save the snapshot files.                                             |
+| `-AllNamespaces`           | Captures/restores all namespaces. Overrides the `-Namespace` parameter.     |
+| `-AllNonSystemNamespaces`  | Captures all non-system namespaces, ignoring `-Namespace` and `-AllNamespaces`. |
+| `-OutputPath`              | Path to save snapshots.                                                     |
 | `-InputPath`               | Path to restore snapshots from or for comparison.                           |
 | `-ComparePath`             | Path to the second snapshot for comparison.                                 |
-| `-Labels`                  | Filters Kubernetes objects based on specified labels (e.g., `app=nginx`).   |
-| `-Objects`                 | Comma-separated list of specific objects in the `kind/name` format.          |
-| `-DryRun`                  | Simulates snapshotting or restoring without making any actual changes.       |
+| `-Labels`                  | Filters objects using specified labels (e.g., `app=nginx`).                 |
+| `-Objects`                 | Comma-separated list of specific objects in `kind/name` format.             |
+| `-DryRun`                  | Simulates snapshotting/restoring without changes.                           |
 | `-Restore`                 | Restores resources from the specified snapshot path.                        |
-| `-Compare`                 | Compares two snapshots or a snapshot with the current cluster state.         |
 | `-CompareWithCluster`      | Compares a snapshot with the current cluster state.                         |
+| `-CompareSnapshots`        | Compares two snapshots.                                                     |
 | `-Force`                   | Bypasses confirmation prompts when restoring snapshots.                     |
-| `-Verbose`                 | Shows detailed output during the snapshot, restore, or comparison process.   |
-| `-SnapshotHelm`            | Backup Helm releases and their values, manifests, and history.              |
-| `-SnapshotHelmUsedValues`  | Backup only the used values (default and user-provided) for Helm releases.   |
-| `-Help`                    | Displays the help information for using `KubeSnapIt`.                       |
+| `-Verbose`                 | Displays detailed output during execution.                                  |
+| `-SnapshotHelm`            | Backup Helm releases including values, manifests, and history.              |
+| `-SnapshotHelmUsedValues`  | Backup only the user-provided Helm values.                                  |
+| `-RestoreHelmSnapshot`     | Restore a Helm release from a snapshot.                                    |
+| `-Help`                    | Displays KubeSnapIt help information.                                      |
 
 ---
 
-## Taking a Snapshot
+## 📂 Taking a Snapshot
 
-To capture a snapshot of Kubernetes resources in a specific namespace:
+KubeSnapIt allows you to take snapshots of **entire clusters**, **specific namespaces**, or **filtered resources**.
 
+### Capture a Namespace Snapshot
 ```powershell
 Invoke-KubeSnapIt -Namespace "your-namespace" -OutputPath "./snapshots"
 ```
+This command captures all resources within the specified namespace and saves them in the defined output path.
 
-To capture snapshots of all resources across all namespaces:
-
+### Capture All Namespaces
 ```powershell
 Invoke-KubeSnapIt -AllNamespaces -OutputPath "./snapshots"
 ```
+This option is useful when you need a full snapshot of your entire Kubernetes cluster.
 
-To capture snapshots of all resources across all non system namespaces:
-
+### Capture Non-System Namespaces
 ```powershell
 Invoke-KubeSnapIt -AllNonSystemNamespaces -OutputPath "./snapshots"
 ```
+This captures all namespaces **except system namespaces** like `kube-system`, making it useful for application-focused snapshots.
 
 ---
 
-## Snapshotting Helm Releases
+## ⎈ Snapshotting Helm Releases
+
+Helm releases can be backed up in full, including manifests, history, and values, or you can capture only the user-defined values.
 
 ### Capture Full Helm Snapshots
-A full Helm snapshot includes:
+```powershell
+Invoke-KubeSnapIt -SnapshotHelm -Namespace "my-namespace" -OutputPath "./helm-backups"
+```
+This captures:
 - Helm release values
 - Helm release manifests
 - Helm release history
 
-Capture snapshots of Helm releases in a specific namespace:
-
-```powershell
-Invoke-KubeSnapIt -SnapshotHelm -Namespace "my-namespace" -OutputPath "./helm-backups"
-```
-
-To capture snapshots of Helm releases in all namespaces:
-
-```powershell
-Invoke-KubeSnapIt -SnapshotHelm -AllNamespaces -OutputPath "./helm-backups"
-```
-
-To capture snapshots of Helm releases in all non-system namespaces:
-
-```powershell
-Invoke-KubeSnapIt -SnapshotHelm -AllNonSystemNamespaces -OutputPath "./helm-backups"
-```
-
----
-
 ### Capture Only Helm Used Values
-The `-SnapshotHelmUsedValues` switch captures only the **used values** for Helm releases. This includes all values (default and user-provided).
-
-To capture only used values for Helm releases in a specific namespace:
-
 ```powershell
 Invoke-KubeSnapIt -SnapshotHelmUsedValues -Namespace "my-namespace" -OutputPath "./helm-backups"
 ```
+This saves only the user-provided Helm values, useful for tracking configuration changes.
 
-To capture only used values for Helm releases in all namespaces:
-
-```powershell
-Invoke-KubeSnapIt -SnapshotHelmUsedValues -AllNamespaces -OutputPath "./helm-backups"
-```
-
-To capture only used values for Helm releases in all non-system namespaces:
-
-```powershell
-Invoke-KubeSnapIt -SnapshotHelmUsedValues -AllNonSystemNamespaces -OutputPath "./helm-backups"
-```
-
----
-
-### Combining Full Snapshots and Used Values
-You can combine the `-SnapshotHelm` and `-SnapshotHelmUsedValues` switches to capture a full Helm snapshot and used values simultaneously.
-
-To capture both full snapshots and used values for Helm releases in a specific namespace:
-
+### Capture Both Helm Snapshots & Used Values
 ```powershell
 Invoke-KubeSnapIt -SnapshotHelm -SnapshotHelmUsedValues -Namespace "my-namespace" -OutputPath "./helm-backups"
 ```
-
-To capture both full snapshots and used values for Helm releases in all namespaces:
-
-```powershell
-Invoke-KubeSnapIt -SnapshotHelm -SnapshotHelmUsedValues -AllNamespaces -OutputPath "./helm-backups"
-```
-
-To capture both full snapshots and used values for Helm releases in all non-system namespaces:
-
-```powershell
-Invoke-KubeSnapIt -SnapshotHelm -SnapshotHelmUsedValues -AllNonSystemNamespaces -OutputPath "./helm-backups"
-```
+This ensures **both full snapshots and values** are stored for disaster recovery and audit purposes.
 
 ---
 
-## Comparing Snapshots
+## 🔍 Comparing Snapshots
 
-To compare a local snapshot against the live cluster state:
+Comparing snapshots allows you to track **configuration drift** or validate changes before applying them.
 
+### Compare Snapshot vs Cluster
 ```powershell
 Invoke-KubeSnapIt -CompareWithCluster -InputPath "./snapshots"
 ```
+This command checks how your saved snapshot differs from the live cluster state.
 
-To compare two local snapshots:
-
+### Compare Two Snapshots
 ```powershell
 Invoke-KubeSnapIt -CompareSnapshots -InputPath "./snapshots/snapshot1" -ComparePath "./snapshots/snapshot2"
 ```
+Use this when you want to see what changed between two different snapshots.
 
 ---
 
-## Restoring a Snapshot
+## ♻️ Restoring Snapshots
 
-To restore a Kubernetes resource from a snapshot, use the following command. By default, the script will ask for confirmation before proceeding with the restore:
+KubeSnapIt can be used to **restore Kubernetes resources** from a previous snapshot.
 
+### Restore a Snapshot
 ```powershell
 Invoke-KubeSnapIt -Restore -InputPath "./snapshots/your_snapshot.yaml"
 ```
+This applies the resources stored in the snapshot back to the cluster.
 
-### Skipping Confirmation with `-Force`
-
-If you want to bypass the confirmation prompt and restore the resources immediately, use the `-Force` option:
-
+### Force Restore Without Confirmation
 ```powershell
 Invoke-KubeSnapIt -Restore -InputPath "./snapshots/your_snapshot.yaml" -Force
 ```
-
-This command restores the resources from the specified snapshot without asking for confirmation.
+The `-Force` flag skips confirmation prompts for fully automated restores.
 
 ---
 
-## Dry Run Mode
+## 🏗️ Dry Run Mode
 
-Use the `-DryRun` option to simulate snapshotting or restoration processes without making any actual changes:
+Before applying any changes, you can **simulate** actions using Dry Run mode.
 
+### Simulate Snapshot Capture
 ```powershell
 Invoke-KubeSnapIt -Namespace "your-namespace" -OutputPath "./snapshots" -DryRun
 ```
+This verifies the snapshot process without saving any files.
 
-This command simulates the snapshot process for the specified namespace without saving any files.
-
-Similarly, you can use the `-DryRun` option during restoration to simulate the restore process:
-
+### Simulate Restore Process
 ```powershell
 Invoke-KubeSnapIt -Restore -InputPath "./snapshots/your_snapshot.yaml" -DryRun
 ```
+This allows you to see what would be restored **without making any actual changes**.
 
-This command simulates the restoration of resources from the specified snapshot without applying any changes.
+---
 
-For detailed logging examples, check out our [Logging and Output](../logging-output) page.
+## 🔎 Detailed Logging & Debugging
+
+For troubleshooting or auditing, use `-Verbose` mode to get detailed logs.
+```powershell
+Invoke-KubeSnapIt -Namespace "your-namespace" -OutputPath "./snapshots" -Verbose
+```
+This provides a breakdown of every operation performed.
+
+📌 **For more details on logging, visit the [Logging and Output](../logging-output) page.** 🚀
+
